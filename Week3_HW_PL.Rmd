@@ -1,0 +1,35 @@
+---
+title: "Week3_HW_PL"
+output: html_document
+---
+#3.1
+```{r}
+library(mlbench)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(ggplot2)
+```
+```{r}
+data(Glass)
+str(Glass)
+```
+##a
+```{r}
+Glass
+```
+```{r}
+ggplot(Glass,aes(x=Type))+
+  geom_bar(colour="black")+
+  ggtitle("Observation Count by Glass Type")
+```
+```{r}
+for(i in 1:9){
+  x <- Glass[,i]
+   hist(x,
+       main=paste("Series Chart",i,": Box Plot of Chemical Elements",
+          names(Glass)[i],"by Type of Glass"),
+       xlab="Type of Glass",
+       col = ("Dark Green"))
+}
+```
