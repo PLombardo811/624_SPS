@@ -1,0 +1,72 @@
+---
+title: "HW3"
+output: html_document
+---
+
+```{r}
+library(mlbench)
+library(e1071)
+library(corrplot)
+library(caret)
+```
+## 3.1
+```{r}
+data(Glass)
+str(Glass)
+```
+
+```{r}
+names<-names(Glass)
+classes<-sapply(Glass,class)
+
+for(name in names[classes == 'numeric'])
+{
+
+    hist(Glass[,name],xlab =name , main =paste("Hstogram of ",  name) ) 
+}
+
+```
+```{r}
+Glass_F <-Glass[,-which(names(Glass)=="Type")]
+skew<-apply(Glass_F,2,skewness)
+skew
+
+```
+```{r}
+correlations<-cor(Glass_F)
+corrplot(correlations,order="hclust")
+correlations
+```
+```{r}
+for (name in names(Glass_F))
+boxplot(Glass_F[,name],xlab = name)
+
+```
+from these plot above I think some pridectors such as K and Fe may have vaild outliers. in addtion predicor RI and Ca appear to have high postive correlation and some predictors have negative correlation like RI and SI 
+
+in terms of skewness, none predictor are prefectly symmetric. predictor K,Ba is highly right skewed and Ca is also right skewed. among all predictors, AI seems to be relative symmetric.
+
+```{r}
+Glass_AT <- Glass_F
+Glass_T<-apply(Glass_F,2,BoxCoxTrans)
+i <-1
+for (name in names(Glass_F))
+{
+Glass_AT[,name] <-predict(Glass_T[i],Glass_F[,name]) 
+i <- i+1
+  
+}
+skew_AT<-apply(Glass_AT,2,skewness)
+skew_AT
+```
+```{r}
+for(name in names[classes == 'numeric'])
+{
+
+    hist(Glass_AT[,name],xlab =name , main =paste("Hstogram of ",  name) ) 
+}
+```
+
+Due to 0 value some predictors are not transformed such as K,Ba,Fe and for those transformed predictor the skewness are improved a little bit the predictor benefit most from the transformation is Ca
+
+
