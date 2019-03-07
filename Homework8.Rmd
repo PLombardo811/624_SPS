@@ -1,0 +1,155 @@
+---
+title: "CUNY DATA 624 Spring 2019 Homework Set 1"
+author: "Group 3"
+date: "March 6, 2019"
+output: html_document
+---
+
+```{r warning=FALSE,message=FALSE}
+library(urca)
+library(fpp2)
+library(forecast)
+
+```
+
+### Question 1
+
+a. Yes all these figures reflect white noise. For white noise series we expect autocorrelations to be random, have a mean of zero and rarely stray outside the critical values denoting ± 2/√T as all these series show.  
+  
+b. The more numbers in a series of data the less fluctuation we are likely to observe in the autocorrelations among the series of numbers.
+
+### Question 2
+
+* As you will see from the scatterplot below of IBM closing prices, there are clear trends in the data over periods of time. This suggests it is non-stationary, since stationary data would only show random fluctuations.  
+* In the ACF plot, we again see a clear trend in the data, with large spikes in autocorrelations way above the bounds of the critical values within which you'd expect nearly all values if it were white noise.  
+* In the PACF plot, we see a significant spike at lag of 1, well outside the critical values of ± 2/√T (shown by the blue dotted lines.)
+
+```{r}
+ibmclose %>% ggtsdisplay(main="IBM Closing Prices Over Time")
+```
+
+### Question 7
+
+a.  
+
+```{r}
+wmurders %>% ggtsdisplay(main="No of Women Murdered Each Year in the United States")
+wmurders %>% ur.kpss() %>% summary()
+```
+
+By reviewing these data sets, it is clear that this is non-stationary (e.g., see clear trends in scatterplot and spikes in ACF plot.) Thus we will explore using differencing. The test statistic finally goes below 1 using second order differencing.  
+
+```{r}
+wmurders %>% diff() %>% ur.kpss() %>% summary()
+wmurders %>% diff(differences=2) %>% ur.kpss() %>% summary()
+ndiffs(wmurders)
+```
+
+The PACF plot appears to show it gradually decaying as the lag gets longer (though there are a couple of minor variations at lags of 8 and 9)  
+Therefore we would select a ARIMA(0,d,q) model. d= 2 and q = 1 since the ACF spikes at lag of 1.  
+
+```{r}
+wmurders %>% diff(differences=2) %>% ggtsdisplay(main="")
+```
+
+```{r}
+wmurder_fit <- Arima(wmurders, order=c(0,2,1))
+wmurder_fit
+```
+
+b. For the Arima function, no constant is allowed when d > 1 as "a quadratic or higher order trend is particularly dangerous when forecasting."  
+
+c. y" = (1 − B)^2 yt  
+
+d. Yes, the model seems satisfactory. The residual are somewhat normally distributed for both the model we selected and all the values in the ACF plot fall within ± 2/√T.  
+
+```{r}
+checkresiduals(wmurder_fit)
+```
+
+e. Below are the forecasted values for the next three time periods, including ranges at the 80% and 95% confidence intervals.  
+
+```{r}
+forecast(wmurder_fit,h=3)
+```
+
+f. Below is the plot of the forecasted values, including shading to show the 80% and 95% confidence intervals for the forecasted values.  
+
+```{r}
+autoplot(forecast(wmurder_fit))
+```
+
+g. Using the auto.arima models gives us an ARIMA (1,2,1) model. The ACF actually returns better results than the model we selected. For example, the AIC value is slightly lower, and again the residuals are somewhat normally distribtued and the ACF values all fall within ± 2/√T.  
+
+```{r}
+wmurder_fit2 <- auto.arima(wmurders, seasonal=FALSE)
+wmurder_fit2
+checkresiduals(wmurder_fit2)
+autoplot(forecast(wmurder_fit2))
+```
+
+### Question 12
+
+a. By reviewing scatterplot below it appears there is not a huge change in variance for this data set, so it does not require a transformation.  
+
+```{r}
+plot(mcopper)
+```
+
+b. The auto.arima function returns an ARIMA (0,1,1) model.  
+
+```{r}
+auto.arima(mcopper)
+```
+
+c. Below we try some other plausible models by experimenting with the orders chosen
+
+```{r}
+mcopper %>% ur.kpss() %>% summary()
+mcopper %>% diff() %>% ur.kpss() %>% summary()
+mcopper %>% diff(differences=2) %>% ur.kpss() %>% summary()
+ndiffs(mcopper)
+
+mcopper %>% diff() %>% ggtsdisplay()
+mcopper %>% diff(differences=2) %>% ggtsdisplay()
+
+mcopper_fit <- Arima(mcopper, order=c(1,2,1))
+mcopper_fit
+
+mcopper_fit2 <- Arima(mcopper, order=c(0,1,1))
+mcopper_fit2
+
+mcopper_fit3 <- Arima(mcopper, order=c(1,1,1))
+mcopper_fit3
+
+mcopper_fit4 <- Arima(mcopper, order=c(1,2,0))
+mcopper_fit4
+
+mcopper_fit5 <- Arima(mcopper, order=c(0,2,1))
+mcopper_fit5
+```
+
+d. Below we test the residuals for our best model (lowest AIC) - mcopper_fit. The residuals are very normally distributed, but a few values fall outside of the critical value bounds on the ACF plot.
+
+```{r}
+checkresiduals(mcopper_fit)
+```
+
+e. Below are forecasts for our fitted model. 
+
+```{r}
+
+forecast(mcopper_fit,h=12)
+
+autoplot(forecast(mcopper_fit))
+
+```
+
+
+f. Below we run an ets model. Unlike our ARIMA model, the forecasted values decrease.
+
+
+```{r}
+mcopper %>% ets() %>% forecast(h=12) %>% autoplot()
+```
+
