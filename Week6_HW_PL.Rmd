@@ -1,0 +1,122 @@
+---
+title: "Week6_HW_PL"
+author: "Peter Lombardo"
+date: "March 9, 2019"
+output: html_document
+---
+```{r}
+suppressMessages(suppressWarnings(library(readxl)))
+suppressMessages(suppressWarnings(library(ggplot2)))
+suppressMessages(suppressWarnings(library(forecast)))
+suppressMessages(suppressWarnings(library(fpp2)))
+suppressMessages(suppressWarnings(library(mlbench)))
+suppressMessages(suppressWarnings(library(caret)))
+suppressMessages(suppressWarnings(library(caTools)))
+```
+
+#8.1
+
+##A
+Explain the differences among these figures. Do they all indicate that the data are white noise?
+
+Yes because because there is no correlation from one point to the next. 
+
+##B
+Why are the critical values at different distances from the mean of zero? Why are the autocorrelations different in each figure when they each refer to white noise?
+
+It can be assumed that some observations can break the critical values while stil being white noise. 
+
+#8.2
+A classic example of a non-stationary series is the daily closing IBM stock price series (data set ibmclose). Use R to plot the daily closing prices for IBM stock and the ACF and PACF. Explain how each plot shows that the series is non-stationary and should be differenced.
+```{r}
+data(ibmclose)
+tsdisplay(ibmclose)
+```
+the ACF plot shows strong autocorrelation.
+
+#8.7
+Consider wmurders, the number of women murdered each year (per 100,000 standard population) in the United States.
+```{r}
+data(wmurders)
+```
+
+##A
+```{r}
+tsdisplay(wmurders)
+```
+##B
+Should you include a constant in the model? Explain.
+
+No, there is no drastic chnage in the avergae. 
+
+##C
+Write this model in terms of the backshift operator.
+
+(1-B-B2)(1-B)yt
+
+##D
+Fit the model using R and examine the residuals. Is the model satisfactory?
+```{r}
+fit <- Arima(wmurders, order = c(2,1,0))
+plot(fit$residuals)
+```
+There are no pattern in the resdiual, therefore the modle is satisfactory.
+
+##E
+Forecast three times ahead. Check your forecasts by hand to make sure that you know how they have been calculated.
+```{r}
+forecast <- forecast(fit, h=3)
+forecast
+```
+##F
+```{r}
+plot(forecast)
+```
+##G
+```{r}
+fit_g <- auto.arima(wmurders)
+fit_g
+```
+
+The modles appear to be different. I would assume this modle is better since it is auto calculated. 
+
+#8.12
+```{r}
+data(mcopper)
+plot(mcopper)
+```
+##A
+```{r}
+lamda <- BoxCox.lambda(mcopper)
+mcopper_bcx <- BoxCox(mcopper, lambda = lamda)
+tsdisplay(mcopper_bcx)
+```
+##B
+```{r}
+fit <- auto.arima(mcopper, trace = TRUE, ic ="aic", lambda = lamda)
+fit
+```
+##C
+```{r}
+fit_2 <- Arima(mcopper, order = c(2,1,2), lambda = lamda)
+fit_3 <- Arima(mcopper, order = c(0,1,1), lambda = lamda)
+accuracy(fit)
+accuracy(fit_2)
+accuracy(fit_3)
+```
+##D
+```{r}
+plot(fit_2$residuals)
+```
+##E
+```{r}
+forecast <- forecast(fit_2, h=10)
+plot(forecast)
+```
+The forecast look reasonable. 
+##F
+```{r}
+fit_4 <- ets(mcopper); fit_4
+forecast2 <- forecast(fit_4, h=10)
+plot(forecast2)
+```
