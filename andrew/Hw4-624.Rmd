@@ -1,0 +1,117 @@
+---
+title: "HW4"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r}
+library(fpp2)
+```
+
+## 7.5
+```{r}
+autoplot(books) + ggtitle("Daily Sales") + xlab("Day") 
+hard <- books[,"Hardcover"]
+fch <- ses(hard, h=5)
+round(accuracy(fch),2)
+autoplot(fch) +
+  autolayer(fitted(fch), series="Fitted") + ggtitle("Daily Sales for Hardcover Books") +
+  ylab("books") + xlab("Year")
+paper <- books[,"Paperback"]
+fcp <- ses(paper, h=5)
+round(accuracy(fcp),2)
+autoplot(fcp) +
+  autolayer(fitted(fcp), series="Fitted") + ggtitle("Daily Sales for Papercover Books") +
+  ylab("books") + xlab("Year")
+```
+Both series has a upward trend and seasonality and the variance seasonality changes overtime 
+
+## 7.6
+```{r}
+fchh <- holt(hard, h=5)
+autoplot(hard) +
+  autolayer(fchh, series="Holt's method", PI=FALSE) +
+  ggtitle("Forecasts for Hard Books from Holt's method") + xlab("Day") +
+  ylab("Books") +
+  guides(colour=guide_legend(title="Forecast"))
+round(accuracy(fchh),2)
+fcph <- holt(paper, h=5)
+autoplot(paper) +
+  autolayer(fcph, series="Holt's method", PI=FALSE) +
+  ggtitle("Forecasts for Paper Books from Holt's method") + xlab("Day") +
+  ylab("Books") +
+  guides(colour=guide_legend(title="Forecast"))
+round(accuracy(fcph),2)
+```
+according to the RMSE maesure, the Holt Linear method work better for both series. BUt from the forcast plot, I think the Holt Linear method is better than simple exponential smoothing forpaper book becasue it realized the increase trend for the series and I think simple exponential smoothing works better for hard cover becasue it interpret the fluctuation 
+
+```{r}
+fcp$Lo <- fcp$fitted - 1.96*33.64
+fcp$Hi <- fcp$fitted + 1.96*33.64
+fcph$Lo <-fcph$fitted - 1.96*31.14 
+fcph$Hi <-fcph$fitted + 1.96*31.14 
+fch$Lo <- fch$fitted - 1.96*31.93
+fch$Hi <- fch$fitted + 1.96*31.93
+fchh$Lo <- fchh$fitted - 1.96*27.19
+fchh$Hi <- fchh$fitted + 1.96*27.19
+
+cbind(fcp$Lo,fcp$Hi,fcph$Lo,fcph$Hi)
+cbind(fch$Lo,fch$Hi,fchh$Lo,fchh$Hi)
+```
+the Holt's method has a smaller interval since it has a lower RMSE
+
+## 7.10
+##A B
+```{r}
+autoplot(ukcars) + ggtitle("UK passenger vehicle production") + xlab("year")
+
+ukcars  %>%
+  stl(t.window=4, s.window="periodic", robust=TRUE) %>%
+  autoplot() + ggtitle("UK passenger vehicle production")
+ukcars  %>%
+  stl(t.window=4, s.window="periodic", robust=TRUE)->fit
+autoplot(ukcars, series="Data") +
+autolayer(seasadj(fit), series="Seasonally Adjusted") + xlab("Year") + ggtitle("Seasonally Adjusted UK passenger vehicle production")
+```
+the series has a obvious trand and seasonality and the variance of seasonality is not constant
+
+## C
+```{r}
+stlf(seasadj(fit),etsmodel="AAN", damped=TRUE) %>% autoplot() 
+
+```
+
+##D
+```{r}
+holt(seasadj(fit), h=8, damped = FALSE)%>% autoplot() 
+```
+##E
+```{r}
+fit2<-ets(seasadj(fit))
+fit2 %>% forecast(h=8) %>%
+  autoplot() 
+```
+##F
+```{r}
+fit1<-stlf(seasadj(fit),etsmodel="AAN", damped=TRUE) 
+summary(fit2)
+summary(fit1)
+```
+seems like stl model is better since RMSE is lower
+
+```{r}
+fit3<-holt(seasadj(fit), h=8, damped = FALSE)
+summary(fit3)
+```
+compare all three approch, the stl model looks the best
+```{r}
+checkresiduals(fit1)
+checkresiduals(fit2)
+checkresiduals(fit3)
+```
+from the residual analysis, seems like stl model still have some correlations but is indeed the best among all three models

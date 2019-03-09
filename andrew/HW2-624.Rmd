@@ -1,0 +1,114 @@
+---
+title: "HW2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(fpp2)
+```
+```{r}
+rm(plastics)
+```
+## 6.2
+```{r}
+autoplot(plastics) + ggtitle("Sales of Product A") + xlab("Month") + ylab("Thousands") 
+
+plastics %>% decompose(type="multiplicative") %>%
+  autoplot() + xlab("Month") +
+  ggtitle("Classical multiplicative decomposition
+    of sales product A")
+```
+The plot shows both seasonal fluctuations and a upward trend-cycle and the decomposition also show the same feature 
+
+```{r}
+plastics %>% decompose(type="multiplicative") ->fit
+autoplot(plastics, series="Data") +
+autolayer(seasadj(fit), series="Seasonally Adjusted") + xlab("Month") +ylab("Sales")
+```
+
+```{r}
+ plastics -> p1
+ p1[1]+ 500 ->  p1[1]
+  p1 %>% decompose(type="multiplicative") ->fit
+autoplot(p1, series="Data") +
+autolayer(seasadj(fit), series="Seasonally Adjusted") + xlab("Month") +ylab("Sales")
+
+
+```
+adding 500 to the first obversion change the shape of seasonally adjusted data and add a sharp drop at the begining of the series
+
+```{r}
+ plastics -> p2
+ p2[30]+ 500 ->  p2[30]
+  p2 %>% decompose(type="multiplicative") ->fit
+autoplot(p2, series="Data") +
+autolayer(seasadj(fit), series="Seasonally Adjusted") + xlab("Month") +ylab("Sales")
+```
+adding the outlier in the middle has less affact to the trand of seasonally adjusted data compare to adding it at the end since part of it will be removed when remove seasonalty 
+
+## 6.6
+
+#6.6
+
+```{r}
+# STL decomposition fixed seasonality
+fixed_stl <- stl(bricksq, 
+                          s.window = "periodic",
+                          robust = TRUE)
+# STL decomposition changing seasonality
+changing_stl <- stl(bricksq,
+                             s.window = 8,
+                             robust = TRUE)
+```
+```{r}
+#Plot Data
+autoplot(fixed_stl) +
+  ggtitle('Brick STL Fixed')
+autoplot(changing_stl) +
+  ggtitle('Brick STL Changing')
+```
+```{r}
+autoplot(bricksq, series="Data") +
+autolayer(seasadj(fixed_stl), series="Fix Seasonally Adjusted") + xlab("Year") + ggtitle("Australian quarterly clay brick production")
+
+autoplot(bricksq, series="Data") +
+autolayer(seasadj(changing_stl), series="Changing Seasonally Adjusted") + xlab("Year") + ggtitle("Australian quarterly clay brick production")
+```
+```{r}
+changing_stl %>% seasadj() %>% naive() %>%
+  autoplot() + ylab("clay brick production") +
+  ggtitle("Naive forecasts of seasonally adjusted data") + xlab("Year")
+f<-stlf(bricksq, method='naive')
+f%>%
+  autoplot() + ylab("clay brick production")
+checkresiduals(f)
+```
+the residuals doesn't look uncorrealted 
+
+```{r}
+bricksq2 <- window(bricksq,start=1956,end=c(1992,4))
+f1<-stlf(bricksq2, method='naive')
+f2<-snaive(bricksq2, h=11)
+f1%>% autoplot()
+autoplot(bricksq2)+
+autolayer(f2)
+```
+
+```{R}
+bricksq3 <- window(ausbeer, start=1993)
+accuracy(f1, bricksq3)
+accuracy(f2, bricksq3)
+```
+looks like snaive is better for all meausres
+
+
+
+
+
+
+
+

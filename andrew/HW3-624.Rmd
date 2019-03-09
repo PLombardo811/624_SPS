@@ -1,0 +1,138 @@
+---
+title: "HW3"
+output: html_document
+---
+
+```{r}
+library(mlbench)
+library(e1071)
+library(corrplot)
+library(caret)
+```
+## 3.1
+```{r}
+data(Glass)
+str(Glass)
+```
+
+```{r}
+names<-names(Glass)
+classes<-sapply(Glass,class)
+
+for(name in names[classes == 'numeric'])
+{
+
+    hist(Glass[,name],xlab =name , main =paste("Hstogram of ",  name) ) 
+}
+
+```
+```{r}
+Glass_F <-Glass[,-which(names(Glass)=="Type")]
+skew<-apply(Glass_F,2,skewness)
+skew
+
+```
+```{r}
+correlations<-cor(Glass_F)
+corrplot(correlations,order="hclust")
+correlations
+```
+```{r}
+for (name in names(Glass_F))
+boxplot(Glass_F[,name],xlab = name)
+
+```
+from these plot above I think some pridectors such as K and Fe may have vaild outliers. in addtion predicor RI and Ca appear to have high postive correlation and some predictors have negative correlation like RI and SI 
+
+in terms of skewness, none predictor are prefectly symmetric. predictor K,Ba is highly right skewed and Ca is also right skewed. among all predictors, AI seems to be relative symmetric.
+
+```{r}
+Glass_AT <- Glass_F
+Glass_T<-apply(Glass_F,2,BoxCoxTrans)
+i <-1
+for (name in names(Glass_F))
+{
+Glass_AT[,name] <-predict(Glass_T[i],Glass_F[,name]) 
+i <- i+1
+  
+}
+skew_AT<-apply(Glass_AT,2,skewness)
+skew_AT
+```
+```{r}
+for(name in names[classes == 'numeric'])
+{
+
+    hist(Glass_AT[,name],xlab =name , main =paste("Hstogram of ",  name) ) 
+}
+```
+
+Due to 0 value some predictors are not transformed such as K,Ba,Fe and for those transformed predictor the skewness are improved a little bit the predictor benefit most from the transformation is Ca
+
+
+---
+title: "Week3_HW_PL"
+output: html_document
+---
+#3.1
+```{r}
+suppressMessages(suppressWarnings(library(mlbench)))
+suppressMessages(suppressWarnings(library(dplyr)))
+suppressMessages(suppressWarnings(library(tidyr)))
+suppressMessages(suppressWarnings(library(knitr)))
+suppressMessages(suppressWarnings(library(ggplot2)))
+```
+```{r}
+data(Glass)
+str(Glass)
+```
+##a
+```{r}
+Glass
+```
+```{r}
+ggplot(Glass,aes(x=Type))+
+  geom_bar(colour="black")+
+  ggtitle("Observation Count by Glass Type")
+```
+```{r}
+for(i in 1:9){
+  x <- Glass[,i]
+   hist(x,
+       main=paste("Series Chart",i,": Box Plot of Chemical Elements",
+          names(Glass)[i],"by Type of Glass"),
+       xlab="Type of Glass",
+       col = ("Dark Green"))
+}
+```
+#3.2
+```{r}
+data(Soybean)
+```
+
+```{r}
+Soybean
+```
+##A
+```{r}
+na_count <-sapply(Soybean, function(y) sum(length(which(is.na(y)))))
+na_count <- data.frame(na_count)
+na_count$names <- rownames(na_count)
+na_count
+```
+```{r}
+ggplot(data=na_count) + geom_point(aes(x=na_count,y=names))
+```
+##B
+```{r}
+#Seed, Fruit, and Leef data seems to be the most scarce
+```
+##C
+```{r}
+Soybean_NA_Fix<- Soybean[is.na(Soybean)] <- 0
+Soybean_NA_Fix
+na_count_2 <-sapply(Soybean, function(y) sum(length(which(is.na(y)))))
+na_count_2 <- data.frame(na_count_2)
+na_count_2$names <- rownames(na_count_2)
+na_count_2
+```
