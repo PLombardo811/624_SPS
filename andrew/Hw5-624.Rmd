@@ -1,0 +1,144 @@
+---
+title: "Week6_HW_PL"
+author: "Group 3"
+date: "March 9, 2019"
+output: html_document
+---
+```{r}
+suppressMessages(suppressWarnings(library(readxl)))
+suppressMessages(suppressWarnings(library(ggplot2)))
+suppressMessages(suppressWarnings(library(forecast)))
+suppressMessages(suppressWarnings(library(fpp2)))
+suppressMessages(suppressWarnings(library(mlbench)))
+suppressMessages(suppressWarnings(library(caret)))
+suppressMessages(suppressWarnings(library(caTools)))
+library(urca)
+```
+
+#8.1
+
+##A
+Explain the differences among these figures. Do they all indicate that the data are white noise?
+
+Yes because because there is no correlation from one point to the next. 
+
+##B
+Why are the critical values at different distances from the mean of zero? Why are the autocorrelations different in each figure when they each refer to white noise?
+
+It can be assumed that some observations can break the critical values while stil being white noise. 
+
+#8.2
+A classic example of a non-stationary series is the daily closing IBM stock price series (data set ibmclose). Use R to plot the daily closing prices for IBM stock and the ACF and PACF. Explain how each plot shows that the series is non-stationary and should be differenced.
+```{r}
+data(ibmclose)
+tsdisplay(ibmclose)
+```
+As you will see from the scatterplot below of IBM closing prices, there are clear trends in the data over periods of time. This suggests it is non-stationary, since stationary data would only show random fluctuations.  
+In the ACF plot, we again see a clear trend in the data, with large spikes in autocorrelations way above the bounds of the critical values within which you'd expect nearly all values if it were white noise.  
+In the PACF plot, we see a significant spike at lag of 1, well outside the critical values of ¡À 2/¡ÌT (shown by the blue dotted lines.)
+
+#8.7
+Consider wmurders, the number of women murdered each year (per 100,000 standard population) in the United States.
+
+
+##A
+```{r}
+wmurders %>% ggtsdisplay(main="No of Women Murdered Each Year in the United States")
+wmurders %>% ur.kpss() %>% summary()
+```
+
+By reviewing these data sets, it is clear that this is non-stationary (e.g., see clear trends in scatterplot and spikes in ACF plot.) Thus we will explore using differencing. The test statistic finally goes below 1 using second order differencing.  
+
+```{r}
+wmurders %>% diff() %>% ur.kpss() %>% summary()
+wmurders %>% diff(differences=2) %>% ur.kpss() %>% summary()
+ndiffs(wmurders)
+```
+
+The PACF plot appears to show it gradually decaying as the lag gets longer (though there are a couple of minor variations at lags of 8 and 9)  
+Therefore we would select a ARIMA(0,d,q) model. d= 2 and q = 1 since the ACF spikes at lag of 1.  
+
+```{r}
+wmurders %>% diff(differences=2) %>% ggtsdisplay(main="")
+```
+
+```{r}
+wmurder_fit <- Arima(wmurders, order=c(0,2,1))
+wmurder_fit
+```
+##B
+Should you include a constant in the model? Explain.
+
+No, there is no drastic change in the avergae. For the Arima function, no constant is allowed when d > 1 as "a quadratic or higher order trend is particularly dangerous when forecasting."  
+
+##C
+Write this model in terms of the backshift operator.
+
+(1-B-B2)(1-B)yt
+
+##D
+Fit the model using R and examine the residuals. Is the model satisfactory?
+```{r}
+fit <- Arima(wmurders, order = c(2,1,0))
+plot(fit$residuals)
+```
+There are no pattern in the resdiual, therefore the modle is satisfactory.
+
+##E
+Forecast three times ahead. Check your forecasts by hand to make sure that you know how they have been calculated.
+```{r}
+forecast <- forecast(fit, h=3)
+forecast
+```
+##F
+```{r}
+plot(forecast)
+```
+##G
+```{r}
+fit_g <- auto.arima(wmurders)
+fit_g
+```
+
+The modles appear to be different. I would assume this modle is better since it is auto calculated. 
+
+#8.12
+```{r}
+data(mcopper)
+plot(mcopper)
+```
+##A
+```{r}
+lamda <- BoxCox.lambda(mcopper)
+mcopper_bcx <- BoxCox(mcopper, lambda = lamda)
+tsdisplay(mcopper_bcx)
+```
+##B
+```{r}
+fit <- auto.arima(mcopper, trace = TRUE, ic ="aic", lambda = lamda)
+fit
+```
+##C
+```{r}
+fit_2 <- Arima(mcopper, order = c(2,1,2), lambda = lamda)
+fit_3 <- Arima(mcopper, order = c(0,1,1), lambda = lamda)
+accuracy(fit)
+accuracy(fit_2)
+accuracy(fit_3)
+```
+##D
+```{r}
+checkresiduals(fit_2)
+```
+##E
+```{r}
+forecast <- forecast(fit_2, h=10)
+plot(forecast)
+```
+The forecast look reasonable. 
+##F
+```{r}
+fit_4 <- ets(mcopper); fit_4
+forecast2 <- forecast(fit_4, h=10)
+plot(forecast2)
+```
