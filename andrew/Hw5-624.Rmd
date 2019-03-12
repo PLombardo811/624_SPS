@@ -117,7 +117,7 @@ data(mcopper)
 plot(mcopper)
 ```
 
-By reviewing scatterplot it appears there is not a huge change in variance for this data set, so it does not require a transformation.  
+By reviewing scatterplot it appears there is not a huge change in variance for this data set, so it does not require a transformation. Below we show a Box-Cox transformation to see what it would look like.  
 
 ##A
 ```{r}
@@ -137,12 +137,13 @@ The auto.arima function returns an ARIMA (0,1,1) model.
 ##C
 ```{r}
 fit_2 <- Arima(mcopper, order = c(2,1,2), lambda = lamda)
-fit_3 <- Arima(mcopper, order = c(0,1,1), lambda = lamda)
+fit_3 <- Arima(mcopper, order = c(1,2,1), lambda = lamda)
 accuracy(fit)
 accuracy(fit_2)
 accuracy(fit_3)
 ```
 
+Above we try a few different models.  We select for final analysis a Arima(2,1,2) model - aka fit_2.
 
 
 ##D
@@ -165,4 +166,4 @@ fit_4 <- ets(mcopper); fit_4
 forecast2 <- forecast(fit_4, h=10)
 plot(forecast2)
 ```
-Unlike our model which forecasts values staying level, the ETS model forecasts falling values. While the upper bounds of each condidence interval appear similar for each model, the ETS model has lower bounds within the confidence intervals.  
+Unlike our Arima models (both the model we selected and the Auto Arima model) which forecast values staying level, the ETS model forecasts falling values. While the upper bounds of each condidence interval appear similar for each model, the ETS model has lower bounds within the confidence intervals.  
