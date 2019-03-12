@@ -165,4 +165,4 @@ fit_4 <- ets(mcopper); fit_4
 forecast2 <- forecast(fit_4, h=10)
 plot(forecast2)
 ```
-Unlike our model which forecasts values staying level, the ETS model forecasts falling values. While the upper bounds of both appear similar, the ETS model has lower bounds within the confidence intervals.  
+Unlike our model which forecasts values staying level, the ETS model forecasts falling values. While the upper bounds of each condidence interval appear similar for each model, the ETS model has lower bounds within the confidence intervals.  
