@@ -20,12 +20,12 @@ library(urca)
 ##A
 Explain the differences among these figures. Do they all indicate that the data are white noise?
 
-Yes because because there is no correlation from one point to the next. 
+Yes all these figures reflect white noise. For white noise series we expect autocorrelations to be random, have a mean of zero and rarely stray outside the critical values denoting ± 2/√T as all these series show.  
 
 ##B
 Why are the critical values at different distances from the mean of zero? Why are the autocorrelations different in each figure when they each refer to white noise?
 
-It can be assumed that some observations can break the critical values while stil being white noise. 
+It can be assumed that some observations can break the critical values while stil being white noise. The more numbers in a series of data the less fluctuation we are likely to observe in the autocorrelations among the series of numbers.
 
 #8.2
 A classic example of a non-stationary series is the daily closing IBM stock price series (data set ibmclose). Use R to plot the daily closing prices for IBM stock and the ACF and PACF. Explain how each plot shows that the series is non-stationary and should be differenced.
@@ -35,7 +35,7 @@ tsdisplay(ibmclose)
 ```
 As you will see from the scatterplot below of IBM closing prices, there are clear trends in the data over periods of time. This suggests it is non-stationary, since stationary data would only show random fluctuations.  
 In the ACF plot, we again see a clear trend in the data, with large spikes in autocorrelations way above the bounds of the critical values within which you'd expect nearly all values if it were white noise.  
-In the PACF plot, we see a significant spike at lag of 1, well outside the critical values of �� 2/��T (shown by the blue dotted lines.)
+In the PACF plot, we see a significant spike at lag of 1, well outside the critical values of ¡À 2/¡ÌT (shown by the blue dotted lines.)
 
 #8.7
 Consider wmurders, the number of women murdered each year (per 100,000 standard population) in the United States.
@@ -69,7 +69,11 @@ wmurder_fit
 ##B
 Should you include a constant in the model? Explain.
 
-No, there is no drastic change in the avergae. For the Arima function, no constant is allowed when d > 1 as "a quadratic or higher order trend is particularly dangerous when forecasting."  
+No, there is no drastic change in the average. For the Arima function, no constant is allowed when d > 1 as "a quadratic or higher order trend is particularly dangerous when forecasting."
+
+c. y" = (1 − B)^2 yt  
+
+d. Yes, the model seems satisfactory. The residual are somewhat normally distributed for both the model we selected and all the values in the ACF plot fall within ± 2/√T.  
 
 ##C
 Write this model in terms of the backshift operator.
@@ -82,18 +86,22 @@ Fit the model using R and examine the residuals. Is the model satisfactory?
 fit <- Arima(wmurders, order = c(2,1,0))
 plot(fit$residuals)
 ```
-There are no pattern in the resdiual, therefore the modle is satisfactory.
+Yes, the model seems satisfactory. The residual are somewhat normally distributed for both the model we selected and all the values in the ACF plot fall within ± 2/√T.  
 
 ##E
 Forecast three times ahead. Check your forecasts by hand to make sure that you know how they have been calculated.
+
 ```{r}
 forecast <- forecast(fit, h=3)
 forecast
 ```
+
 ##F
 ```{r}
 plot(forecast)
 ```
+
+
 ##G
 ```{r}
 fit_g <- auto.arima(wmurders)
