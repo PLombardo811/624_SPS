@@ -111,21 +111,29 @@ fit_g
 Using the auto.arima models gives us an ARIMA (1,2,1) model. The ACF actually returns better results than the model we selected. For example, the AIC value is slightly lower, and again the residuals are somewhat normally distribtued and the ACF values all fall within ± 2/√T.  
 
 #8.12
+
 ```{r}
 data(mcopper)
 plot(mcopper)
 ```
+
+By reviewing scatterplot it appears there is not a huge change in variance for this data set, so it does not require a transformation.  
+
 ##A
 ```{r}
 lamda <- BoxCox.lambda(mcopper)
 mcopper_bcx <- BoxCox(mcopper, lambda = lamda)
 tsdisplay(mcopper_bcx)
 ```
+
 ##B
 ```{r}
 fit <- auto.arima(mcopper, trace = TRUE, ic ="aic", lambda = lamda)
 fit
 ```
+
+The auto.arima function returns an ARIMA (0,1,1) model. 
+
 ##C
 ```{r}
 fit_2 <- Arima(mcopper, order = c(2,1,2), lambda = lamda)
@@ -134,19 +142,27 @@ accuracy(fit)
 accuracy(fit_2)
 accuracy(fit_3)
 ```
+
+
+
 ##D
 ```{r}
 checkresiduals(fit_2)
 ```
+
+Here we test the residuals for our best model fit_2. The residuals are very normally distributed, and all the values fall within the critical value bounds on the ACF plot.  
+
 ##E
 ```{r}
 forecast <- forecast(fit_2, h=10)
 plot(forecast)
 ```
 The forecast look reasonable. 
+
 ##F
 ```{r}
 fit_4 <- ets(mcopper); fit_4
 forecast2 <- forecast(fit_4, h=10)
 plot(forecast2)
 ```
+Unlike our model which forecasts values staying level, the ETS model forecasts falling values. There is also a wider range of values at the 80/95% confidence intervals than the ETS model.  
