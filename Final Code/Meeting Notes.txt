@@ -1,0 +1,11 @@
+HW1: Use code from Peter, add comments from Andrew.
+
+HW2: Complete, upload to GIT
+
+HW3: Use Mehdi's code
+
+HW4: Mehdi to work on 7.10 pt F, add comments for problems
+
+HW5: Alex to add manual calulation for 8.7, use PL version and add comments. 
+
+Peter to submit homework. 
