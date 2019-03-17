@@ -1,0 +1,144 @@
+---
+title: "624_Week1"
+output: html_document
+---
+```{r}
+library(readxl)
+library(ggplot2)
+library(forecast)
+library(fpp2)
+```
+#2.3: Download some monthly Australian retail data from the book website. These represent retail sales in various categories for different Australian states, and are stored in a MS-Excel file.  
+
+##a. You can read the data into R with the following script:  
+
+```{r}
+retaildata <- readxl::read_excel("retail.xlsx", skip=1)
+```
+Reviewing data:
+
+```{r}
+head(retaildata)
+```
+
+##b. Select one of the time series as follows (but replace the column name with your own chosen column):  
+
+```{r}
+myts <- ts(retaildata[,"A3349503T"],
+  frequency=12, start=c(1982,4))
+```
+##c. Explore your chosen retail time series using the following functions:  
+
+```{r}
+autoplot(myts)
+ggseasonplot(myts)
+ggsubseriesplot(myts)
+gglagplot(myts)
+ggAcf(myts)
+```
+Can you spot any seasonality, cyclicity and trend? What do you learn about the series?  
+
+Analysis: The autoplot and ggseason plot show the clearest trends. It appears as though the trend is cyclical, peaking in the winter months. However, there is also an upward trend as the data moves closer to more recent years.  
+
+#2.7: The arrivals data set comprises quarterly international arrivals (in thousands) to Australia from Japan, New Zealand, UK and the US.  
+Use autoplot(), ggseasonplot() and ggsubseriesplot() to compare the differences between the arrivals from these four countries.
+
+```{r}
+arrivals <- ts(arrivals, frequency=4, start=c(1981,1))
+head(arrivals)
+```
+
+```{r}
+autoplot(arrivals)
+```
+
+```{r}
+ggseasonplot(arrivals[,1]) 
+ggseasonplot(arrivals[,2]) 
+ggseasonplot(arrivals[,3]) 
+ggseasonplot(arrivals[,4]) 
+```
+```{r}
+ggsubseriesplot(arrivals[,1]) 
+ggsubseriesplot(arrivals[,2]) 
+ggsubseriesplot(arrivals[,3]) 
+ggsubseriesplot(arrivals[,4]) 
+```
+```{r}
+gglagplot(arrivals[,1]) 
+gglagplot(arrivals[,2]) 
+gglagplot(arrivals[,3]) 
+gglagplot(arrivals[,4])
+```
+```{r}
+ggAcf(arrivals)
+```
+##Can you identify any unusual observations?  
+
+It is interesting and perhaps unusual that acrioss all countries, there appear to be similar seasonal trends - international arrivals peaking towards the end of the year and declining to troughs during the second and third quarters.  Given that some of these countries have different seasons, you might expect some more variation across countries.    
+
+#2.10: dj contains 292 consecutive trading days of the Dow Jones Index. Use ddj <- diff(dj) to compute the daily changes in the index. Plot ddj and its ACF. Do the changes in the Dow Jones Index look like white noise?  
+
+The difference plot looks random except for a huge drop around the 100th day but ACF shows small correaltion for lag 35 and 48, so the change is very close to white noise but not completely.  
+
+```{r}
+ddj <- diff(dj)
+autoplot(ddj)
+```
+#3.1: For the following series, find an appropriate Box-Cox transformation in order to stabilise the variance.  
+* usnetelec 
+* usgdp 
+* mcopper 
+* enplanements 
+
+```{r}
+plot(usnetelec); plot(BoxCox(usnetelec,lambda=1/2))
+plot(usgdp); plot(BoxCox(usgdp,lambda=0))
+plot(mcopper); plot(BoxCox(mcopper,lambda=1/3))
+plot(enplanements); plot(BoxCox(enplanements,lambda=0))
+```
+#3.8: For your retail time series (from Exercise 3 in Section 2.10):
+
+##a. Split the data into two parts using
+```{r}
+myts.train <- window(myts, end=c(2010,12))
+myts.test <- window(myts, start=2011)
+```
+##b. Check that your data have been split appropriately by producing the following plot.
+```{r}
+autoplot(myts) +
+autolayer(myts.train, series="Training") +
+autolayer(myts.test, series="Test")
+```
+##c. Calculate forecasts using snaive applied to myts.train.  
+```{r}
+fc <- snaive(myts.train)
+```
+##d. Compare the accuracy of your forecasts against the actual values stored in myts.test.  
+
+```{r}
+accuracy(fc,myts.test)
+```
+##e. Check the residuals.  
+```{r}
+checkresiduals(fc)
+```
+##Do the residuals appear to be uncorrelated and normally distributed?  
+
+From the ACF plot we see the residuals are not uncorrelated and from the distribution also shows that the residuals are right skewed 
+the accuracy for training set is much better than the test set among all error measures 
+
+##f. How sensitive are the accuracy measures to the training/test split?  
+
+Analysis: we tried varying the years of the training set and test set to assess how much the accuracy changed depending on the selection. As you will see, there was wide variation in the accuracy measures of the projections - especially on the test sets - depending on the training/test split (across all measures.)
+
+```{r}
+for(i in 2008:2013) {
+  myts_new.train <- window(myts, end=c(i,12))
+  myts_new.test <- window(myts, start=i+1)
+  fc_new <- snaive(myts_new.train)
+  accuracy_new <- accuracy(fc_new,myts_new.test)
+  print(accuracy_new)
+}
+```
+
