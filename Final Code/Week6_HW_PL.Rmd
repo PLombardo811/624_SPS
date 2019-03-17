@@ -66,7 +66,7 @@ plot(fit$residuals)
 Yes, the model seems satisfactory. The residual are somewhat normally distributed for both the model we selected and all the values in the ACF plot fall within ± 2/√T.  
 
 
-##E. Forecast three times ahead. Check your forecasts by hand to make sure that you know how they have been calculated.
+##E. Forecast three times ahead. Check your forecasts by hand to make sure that you know how they have been calculated.  
 ```{r}
 forecast <- forecast(fit, h=3)
 forecast
@@ -91,7 +91,7 @@ Using the auto.arima models gives us an ARIMA (1,2,1) model. The ACF actually re
 data(mcopper)
 plot(mcopper)
 ```
-##A. if necessary, find a suitable Box-Cox transformation for the data;
+##A. if necessary, find a suitable Box-Cox transformation for the data;  
 
 By reviewing the scatterplot it appears there is not a huge change in variance for this data set, so it does not require a transformation. Below we show a Box-Cox transformation to see what it would look like.  
 
@@ -101,7 +101,7 @@ mcopper_bcx <- BoxCox(mcopper, lambda = lamda)
 tsdisplay(mcopper_bcx)
 ```
 
-##B. fit a suitable ARIMA model to the transformed data using auto.arima();
+##B. fit a suitable ARIMA model to the transformed data using auto.arima();  
 
 ```{r}
 fit <- auto.arima(mcopper, trace = TRUE, ic ="aic", lambda = lamda)
@@ -110,7 +110,7 @@ fit
 
 The auto.arima function returns an ARIMA (0,1,1) model.   
 
-##C. try some other plausible models by experimenting with the orders chosen;
+##C. try some other plausible models by experimenting with the orders chosen;  
 
 ```{r}
 fit_2 <- Arima(mcopper, order = c(2,1,2), lambda = lamda)
@@ -134,13 +134,14 @@ plot(fit_2$residuals)
 forecast <- forecast(fit_2, h=10)
 plot(forecast)
 ```
-The forecast looks reasonable. 
+The forecast looks reasonable.  
 
-forecasts by manual calculation:
-formula for ARIMA(0,2,2):
+forecasts by manual calculation:  
+formula for ARIMA(0,2,2):  
 (1 - B)^2*yt = (1 + theta1*B + theta2*B^2)*et  (re: chapter 8.8)  
 or yt - 2yt-1 + yt-2 = (1 + theta1*B + theta2*B^2)*et  (re: chapter 8.2)  
 or, yt = 2yt-1 - yt-2 + et+theta1*et-1 + theta2*et-2  
+
 ```{r}
 wmurder_fit$model$theta
 ```
