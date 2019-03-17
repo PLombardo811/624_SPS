@@ -40,7 +40,7 @@ Can you spot any seasonality, cyclicity and trend? What do you learn about the s
 
 Analysis: The autoplot and ggseason plot show the clearest trends. It appears it appears as though the trend is cyclical, peaking in the winter months. However, there is also an upward trend as the data moves closer to more recent years.  
 
-#2.7: The arrivals data set comprises quarterly international arrivals (in thousands) to Australia from Japan, New Zealand, UK and the US.
+#2.7: The arrivals data set comprises quarterly international arrivals (in thousands) to Australia from Japan, New Zealand, UK and the US.  
 Use autoplot(), ggseasonplot() and ggsubseriesplot() to compare the differences between the arrivals from these four countries.
 
 ```{r}
@@ -73,7 +73,7 @@ gglagplot(arrivals[,4])
 ```{r}
 ggAcf(arrivals)
 ```
-Can you identify any unusual observations?  
+##Can you identify any unusual observations?  
 
 From all plots, it show NZ data has seasonality and upward trend UK has seasonality and arrivals usually decease from Q1 to Q2 and increase from Q3 to Q4 US has seasonality in Q1 but no obervious trend. Japan's data is more random.  
 
@@ -97,33 +97,33 @@ plot(enplanements); plot(BoxCox(enplanements,lambda=0))
 ```
 #3.8: For your retail time series (from Exercise 3 in Section 2.10):
 
-Split the data into two parts using
+##a. Split the data into two parts using
 ```{r}
 myts.train <- window(myts, end=c(2010,12))
 myts.test <- window(myts, start=2011)
 ```
-Check that your data have been split appropriately by producing the following plot.
+##b. Check that your data have been split appropriately by producing the following plot.
 ```{r}
 autoplot(myts) +
 autolayer(myts.train, series="Training") +
 autolayer(myts.test, series="Test")
 ```
-c. Calculate forecasts using snaive applied to myts.train.  
+##c. Calculate forecasts using snaive applied to myts.train.  
 ```{r}
 fc <- snaive(myts.train)
 ```
-d. Compare the accuracy of your forecasts against the actual values stored in myts.test.  
+##d. Compare the accuracy of your forecasts against the actual values stored in myts.test.  
 
 ```{r}
 accuracy(fc,myts.test)
 ```
-e. Check the residuals.  
+##e. Check the residuals.  
 ```{r}
 checkresiduals(fc)
 ```
-Do the residuals appear to be uncorrelated and normally distributed?  
+##Do the residuals appear to be uncorrelated and normally distributed?  
 
 From the ACF plot we see the residuals are not uncorrelated and from the distribution also shows that the residuals are right skewed 
 the accuracy for training set is much better than the test set among all error measures 
 
-f. How sensitive are the accuracy measures to the training/test split?  
+##f. How sensitive are the accuracy measures to the training/test split?  
