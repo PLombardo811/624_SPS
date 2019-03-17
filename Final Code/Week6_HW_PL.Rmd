@@ -12,6 +12,7 @@ suppressMessages(suppressWarnings(library(fpp2)))
 suppressMessages(suppressWarnings(library(mlbench)))
 suppressMessages(suppressWarnings(library(caret)))
 suppressMessages(suppressWarnings(library(caTools)))
+suppressMessages(suppressWarnings(library(urca)))
 ```
 
 #8.1: Figure 8.31 shows the ACFs for 36 random numbers, 360 random numbers and 1,000 random numbers.  
