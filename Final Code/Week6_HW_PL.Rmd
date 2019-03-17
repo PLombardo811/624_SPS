@@ -54,7 +54,7 @@ These queries suggest an ARIMA(0,2,2) model since the PACF decays exponentially 
 
 No, there is no drastic change in the average.  
 
-##C. Write this model in terms of the backshift operator.
+##C. Write this model in terms of the backshift operator.  
 
 (1 ??? B)^2 yt  = (1 + theta1*B + theta2*B^2)*et  
 
