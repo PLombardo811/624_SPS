@@ -121,6 +121,7 @@ accuracy(fit_3)
 ```
 Above we try a few different models.  We select for final analysis a Arima(2,1,2) model - aka fit_2.  
 
+
 ##D. choose what you think is the best model and check the residual diagnostics;  
 
 Here we test the residuals for our best model fit_2. The residuals are very normally distributed, and all the values fall within the critical value bounds on the ACF plot.  
