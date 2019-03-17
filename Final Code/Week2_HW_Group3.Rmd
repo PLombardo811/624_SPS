@@ -8,21 +8,25 @@ library(ggplot2)
 library(forecast)
 library(fpp2)
 ```
-#6.2
-##A
+#6.2 The plastics data set consists of the monthly sales (in thousands) of product A for a plastics manufacturer for five years.
+##A Plot the time series of sales of product A. Can you identify seasonal fluctuations and/or a trend-cycle?
 ```{r}
 autoplot(plastics)
 ```
+##The plot of the data shows that there are seasonal fluctuations and upward trend.
+
+##B Use a classical multiplicative decomposition to calculate the trend-cycle and seasonal indices.
+
 ```{r}
 decompose_plastics <- decompose(plastics,
                                 type = "multiplicative")
 autoplot(decompose_plastics)
 ```
-##C
+##C Do the results support the graphical interpretation from part a?
 
 Yes, the plot does show an upward trend and presence of the seasonal fluctuations.
 
-##D
+##D Compute and plot the seasonally adjusted data.
 ```{r}
 autoplot(plastics, series="Data") +
   autolayer(trendcycle(decompose_plastics), series="Trend") +
@@ -32,7 +36,7 @@ autoplot(plastics, series="Data") +
   scale_colour_manual(values=c("gray","blue","black"),
                      breaks=c("Data","Seasonal Data","Trend"))
 ```
-##E
+##E Change one observation to be an outlier (e.g., add 500 to one observation), and recompute the seasonally adjusted data. What is the effect of the outlier? 
 ```{r}
 plastics_outlier  <- plastics
 plastics_outlier [50] <- plastics_outlier [50] + 500
@@ -48,7 +52,10 @@ autoplot(plastics_outlier, series="Data") +
   scale_colour_manual(values=c("gray","blue","black"),
                      breaks=c("Data","Seasonal Data","Trend"))
 ```
-##F
+##The outlier affects trend little, but affects the seasonally adjusted data severely. Seasonally adjusted data have errors like the original data have.
+
+
+##F Does it make any difference if the outlier is near the end rather than in the middle of the time series?
 ```{r}
 plastics_outlier2  <- plastics
 plastics_outlier2 [10] <- plastics_outlier2 [10] + 500
@@ -64,9 +71,11 @@ autoplot(plastics_outlier2, series="Data") +
   scale_colour_manual(values=c("gray","blue","black"),
                      breaks=c("Data","Seasonal Data","Trend"))
 ```
+##If an outlier is near the end, the effect to trend decreases.
 
-#6.6
-##A
+
+#6.6 We will use the bricksq data (Australian quarterly clay brick production. 1956–1994) for this exercise.
+##A Use an STL decomposition to calculate the trend-cycle and seasonal indices. (Experiment with having fixed or changing seasonality.)
 ```{r}
 # STL decomposition fixed seasonality
 fixed_stl <- stl(bricksq, 
@@ -84,7 +93,7 @@ autoplot(fixed_stl) +
 autoplot(changing_stl) +
   ggtitle('Brick STL Changing')
 ```
-##B
+##B Compute and plot the seasonally adjusted data.
 ```{r}
 # fixed seasonality
 autoplot(bricksq, series = 'Data') +
@@ -107,7 +116,7 @@ autoplot(bricksq, series = 'Data') +
   scale_color_manual(values = c('gray', 'blue', ' black'),
                      breaks = c('Data', 'Seasonal Data','Trend cycle'))
 ```
-##C
+##C Use a naïve method to produce forecasts of the seasonally adjusted data.
 ```{r}
 fixed_stl %>% seasadj() %>% naive() %>% autoplot() + 
   ggtitle(label = "Naive forecast for seasonally adjusted brick data",
@@ -116,22 +125,29 @@ changing_stl %>% seasadj() %>% naive() %>% autoplot() +
   ggtitle(label = "Naive forecast for seasonally adjusted brick data",
           subtitle = "decomposed using STL with changing seasonality")
 ```
-##D
+#the prediction intervals of seasonally adjusted data decomposed by STL have smaller ranges than the fixed seasonality. This is because the variance of the remainder component decreased when the seasonality is changed.
+
+
+##D Use stlf() to reseasonalise the results, giving forecasts for the original data.
 ```{r}
 stlf_brick <- stlf(bricksq)
 autoplot(stlf_brick)
 ```
-##E
+##E Do the residuals look uncorrelated? 
 ```{r}
 checkresiduals(stlf_brick)
 ```
-##F
+##The residuals appear to be correlated with each other.
+
+##F Repeat with a robust STL decomposition. Does it make much difference?
 ```{r}
 stlf_brick_robust <- stlf(bricksq, robust = TRUE)
 autoplot(stlf_brick_robust)
 checkresiduals(stlf_brick_robust)
 ```
-##G
+##The autocorrelation lowered in general, but there are still some high value outliers.
+
+##G Compare forecasts from stlf() with those from snaive(), using a test set comprising the last 2 years of data. Which is better?
 ```{r}
 train_data <- subset(bricksq, 
                         end = length(bricksq) - 7)
@@ -158,3 +174,5 @@ autoplot(bricksq, series = "Original") +
     fill="light blue",alpha = 0.5
     )
 ```
+##The forecasts from stlf function are more similar to the original data than the forecasts from snaive function. The stlf function trends, and its seasonality tend to change over a period time. Therefore stlf function was better than snaive function to predict brick production amounts for near future.
+
