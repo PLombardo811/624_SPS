@@ -57,7 +57,7 @@ No, there is no drastic change in the average.
 
 ##C. Write this model in terms of the backshift operator.  
 
-(1 B)^2 yt  = (1 + theta1*B + theta2*B^2)* et  
+(1 - B)^2 yt  = (1 + theta1*B + theta2*B^2)* et    
 
 ##D. Fit the model using R and examine the residuals. Is the model satisfactory?  
 
