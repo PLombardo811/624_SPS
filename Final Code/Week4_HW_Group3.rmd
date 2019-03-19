@@ -1,0 +1,162 @@
+---
+title: "624_HW4_Group3"
+output: html_document
+---
+```{r}
+suppressMessages(suppressWarnings(library(readxl)))
+suppressMessages(suppressWarnings(library(ggplot2)))
+suppressMessages(suppressWarnings(library(forecast)))
+suppressMessages(suppressWarnings(library(fpp2)))
+suppressMessages(suppressWarnings(library(mlbench)))
+suppressMessages(suppressWarnings(library(caret)))
+suppressMessages(suppressWarnings(library(caTools)))
+```
+
+#7.6
+##A Now apply Holtas linear method to the paperback and hardback series and compute four-day forecasts in each case.
+```{r}
+holt_Paper <- holt(books[,1], initial = "simple", h=4)
+summary(holt_Paper)
+plot(holt_Paper)
+```
+```{r}
+holt_Hardcover <- holt(books[,2], initial = "simple", h=4)
+summary(holt_Hardcover)
+plot(holt_Hardcover)
+```
+#We can see the linear trend in the forecasts plotted.
+
+##B Compare the RMSE measures of Holtas method for the two series to those of simple exponential smoothing in the previous question. (Remember that Holtas method is using one more parameter than SES.) Discuss the merits of the two forecasting methods for these data sets.
+```{r}
+new_Paper <- sqrt(mean(holt_Paper$residuals^2))
+new_Hardcover <- sqrt(mean(holt_Hardcover$residuals^2))
+new_Paper
+new_Hardcover
+```
+#For both series, RMSE values became lower when Holt's method was used. If there is an approxiamately linear trend in data, it would be better to use Holt's linear method even if one more parameter is needed than in the SES method. But if there isn't any particular trend in data, the SES method is a more direct and simple model to use.
+
+##C Compare the forecasts for the two series using both methods. Which do you think is best?
+#The forecasts of hardcover sales were better than the ones of paperback sales because RMSE value is lower for the hardcover values. Its also worth noting that we had a difficult time forecasting the pattern in the paperback sales data using Holt's method.
+
+
+##D Calculate a 95% prediction interval for the first forecast for each series, using the RMSE values and assuming normal errors. Compare your intervals with those produced using ses and holt.
+```{r}
+writeLines("95% PI of paperback sales calculated by holt function")
+holt_Paper$upper[1, "95%"]
+holt_Paper$lower[1, "95%"]
+writeLines("95% PI of paperback sales calculated by formula")
+holt_Paper$mean[1] + 1.96*new_Paper
+holt_Paper$mean[1] - 1.96*new_Paper
+writeLines("95% PI of hardcover sales calculated by holt function")
+holt_Hardcover$upper[1, "95%"]
+holt_Hardcover$lower[1, "95%"]
+writeLines("95% PI of hardcover sales calculated by formula")
+holt_Hardcover$mean[1] + 1.96*new_Hardcover
+holt_Hardcover$mean[1] - 1.96*new_Hardcover
+```
+#The prediction interval for the first forecast for each series was almost same regardless of calculating method. For the SES case, the PI was different when it was calculated by SES function and formula respectively.
+
+#7.10
+```{r}
+data(ukcars)
+head(ukcars)
+```
+##7.10.a: Plot the data and describe the main features of the series
+```{r}
+autoplot(ukcars)
+```
+#### Answer: 
+The data shows trend and seasonality (quarterly)
+
+
+##7.10.b: Decompose the series using STL and obtain the seasonally adjusted data.
+```{r}
+decomposed <- stl(ukcars, s.window="periodic", robust=TRUE)
+seasonal <- decomposed$time.series[,1]
+
+cars_stl <- ukcars - seasonal
+cars_stl
+autoplot(cars_stl)
+```
+After decomposing the seasonally adjusted data shows smaller variability
+
+##7.10.c: Forecast the next two years of the series using an additive damped trend method applied to the seasonally adjusted data. (This can be done in one step using stlf() with arguments etsmodel="AAN", damped=TRUE.)
+```{r}
+stlf_decompose_ukcars <- stlf(cars_stl, etsmodel="AAN", damped=TRUE)
+stlf_decompose_ukcars
+```
+##7.10.d: Forecast the next two years of the series using Holt's linear method applied to the seasonally adjusted data (as before but with damped=FALSE).
+```{r}
+
+
+holt_model <- holt(cars_stl, etsmodel="AAN", damped=FALSE)
+holt_model
+summary(holt_model)
+```
+
+
+
+
+##7.10.e: Now use ets() to choose a seasonal model for the data. 
+```{r}
+ets_model <- ets(cars_stl)
+summary(ets_model)
+```
+## 7.10.f: Compare the RMSE of the ETS model with the RMSE of the models you obtained using STL decompositions. Which gives the better in-sample fits?
+
+accuracy of the first (STL +  ETS(A,Ad,N)) model (refer to question 7.c):
+```{r}
+
+accuracy(stlf_decompose_ukcars)
+
+
+```
+
+accuracy of the second model (refer to question 7.d):
+```{r}
+
+accuracy(holt_model)
+
+```
+
+accuracy of the ETS model (refer to question 7.e):
+
+```{r}
+
+accuracy(ets_model )
+
+
+```
+
+##### Answer:
+Comparing the RMSE of the models obtained using STL decompositions (stlf_decompose_ukcars and holt_model) with the RMSE of the ETS model (ets_model), the best model was "stlf_decompose_ukcars" created in 7.c (STL +  ETS(A,Ad,N)) 
+
+
+
+##7.10.g: Compare the forecasts from the three approaches? Which seems most reasonable?
+
+
+```{r}
+autoplot(stlf_decompose_ukcars); autoplot(holt_model) ; autoplot(forecast(ets_model,h=8))
+```
+
+forecast of ETS model:
+```{r}
+forecast(ets_model,h=8)
+```
+
+#### Answer:
+The forecast of the STL +  ETS(A,Ad,N) model seems reasonable. 
+
+
+
+
+
+##7.h: Check the residuals of your preferred model
+```{r}
+
+checkresiduals(stlf_decompose_ukcars)
+
+```
+
+The residuals seem to still have some autocorrelation. 

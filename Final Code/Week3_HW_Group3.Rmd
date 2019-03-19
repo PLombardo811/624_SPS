@@ -1,0 +1,239 @@
+---
+title: "624_HW3_Group3"
+author: "Group 3"
+output: html_document
+---
+
+# Exercise 3.1. 
+The UC Irvine Machine Learning Repository 6 contains a data set related
+to glass identification. The data consist of 214 glass samples labeled as one
+of seven class categories. There are nine predictors, including the refractive
+index and percentages of eight elements: Na, Mg, Al, Si, K, Ca, Ba, and Fe.
+
+
+## 3.1 (a) Using visualizations, explore the predictor variables to understand their distributions as well as the relationships between predictors.
+
+##### Accessing the data:
+The data was accessed using the library 'mlbench' that loads the glass data. So as the first step the library was loaded first, the 'suppressMessages' and 'suppressWarnings' functions were used to avoid warning and messages:
+```{r}
+ suppressMessages(suppressWarnings(library(mlbench)))
+```
+
+load other libraries:
+```{r}
+suppressMessages(suppressWarnings(library(caret)))
+suppressMessages(suppressWarnings(library(stats)))
+suppressMessages(suppressWarnings(library(corrplot)))
+suppressMessages(suppressWarnings(library(ggplot2)))
+suppressMessages(suppressWarnings(library(dplyr)))
+
+```
+
+Access and load the appropriate data:
+```{r}
+
+Glass
+```
+
+##### visualization of the predictor variables: 
+histograms and density plots were produced by looping through the variables in Glass dataset. Since the varible 'Type' is not a numeric variable, it was not considered in the loop. The 'mar' and 'mfrow' parameters of par function were set to arrange all the plots in a grid.   
+
+A Correlation matrix and a correlation plot were also produced to better understand the data and the relationship between predictor variables 
+```{r}
+
+par(mar=c(3,1,1,1))
+par(mfrow=c(4,3))
+for (i in 1:(length(colnames(Glass))-1)){
+  
+  hist(Glass[,i], main = colnames(Glass)[i], col="gray", prob=TRUE )
+  lines(density(Glass[,i]), col="red", lw=2)
+  grid()
+}
+
+```
+
+
+
+correlation matrix of the numeric variables:
+```{r}
+numeric_glass <- Glass[,-10]
+corrrelations <- cor(numeric_glass)
+corrrelations
+
+```
+
+
+correlation plot:
+```{r }
+corrplot.mixed(corrrelations, lower = "number", upper = "circle")
+
+```
+
+Finally a scatterplot matrix was produced to observe the relationships and patterns of the variables within the total context of the data:
+```{r}
+pairs(Glass)
+
+```
+
+#### Answer:
+
+Histogram and density plots show that the variables RI, Al, Na and Si have near normal distributions. The variables K, Ca, Ba, Fe are heavily right skewed while Mg has left skewed distribution. Ca, Ba, and Fe have unimodal and Mg and K have bimodal distributions. Both the correlation and scatterplot matrix plots show a strong positive correlation between RI and Ca. Moderately strong but negative Correlations exist between RI and Si, Mg and AI, Mg and Ba, and Mg and Ca. A moderately strong correlation is also present between AI and Ba.
+
+
+
+
+### 3.1(b) Do there appear to be any outliers in the data? Are any predictors skewed?
+
+While the histogram amd density plots show the skewness of the variables, boxplots of the variable were produced to examine the presence of any outliers:
+```{r}
+par(mar=c(1,1,1,1))
+par(mfrow=c(2,5))
+for (i in 1:(length(colnames(Glass))-1)){
+  
+  boxplot(Glass[,i], main = colnames(Glass)[i], col="gray", prob=TRUE )
+ 
+  
+}
+
+
+```
+
+
+#### Answer:
+The boxplots indicates significant outliers (i.e. values fall outside of the whisker) in all variables except Na and Mg. The combination of long and short whiskers in the boxplots for Mg, K, Fe, Ba and Ca prove that their distributions are skewed, which match with the findings in histograms and density plots as discussed earlier. 
+
+
+
+#### 3.1(c) Are there any relevant transformations of one or more predictors that might improve the classification model?
+
+As a first step to determine the relevant transformations the skewness of distributions were computed for those variables who seem to have skewed distributions as determined earlier (i.e. the variables K, Ca, Ba, Fe and Mg ). The library e1071 was loaded to compute skewness.
+
+```{r}
+suppressMessages(suppressWarnings(library(e1071)))
+```
+
+Skewness of variables:
+```{r}
+paste( "skewness of k before transformation: ",round(skewness(Glass$K),3))
+paste( "skewness of Ca before transformation: ",round(skewness(Glass$Ca),3))
+paste( "skewness of Ba before transformation: ",round(skewness(Glass$Ba),3))
+paste( "skewness of Fe before transformation: ",round(skewness(Glass$Fe),3))
+paste( "skewness of Mg before transformation: ",round(skewness(Glass$Mg),3))
+
+```
+
+#### Answer:
+SO except Mg all the above variables have positive skewness. As per Turkey's Ladder of Powers or Bulging Rule, going up with the power or postive exponents reduces negative skew and going down with the power or negative exponent reduces positive skew. After trial and error it seems for k and Ba Reciprocal transformation and for Ca and Fe Reciprocal Squre transformation brings their skewness to some acceptable values. A cube transformation on Mg was found to be acceptable.
+
+Skewness of the variables after transformation:
+```{r}
+paste( "skewness of k after transformation: ",round(skewness(Glass$K)^(-1),3))
+paste( "skewness of Ca after transformation: ",round(skewness(Glass$Ca)^(-2),3))
+paste( "skewness of Ba after transformation: ",round(skewness(Glass$Ba)^(-1),3))
+paste( "skewness of Fe after transformation: ",round(skewness(Glass$Fe)^(-2),3))
+paste( "skewness of Mg after transformation: ",round(skewness((Glass$Mg)^3),3))
+
+
+```
+
+
+
+
+
+
+## Exercise 3.2. 
+The soybean data can also be found at the UC Irvine Machine Learning
+Repository. Data were collected to predict disease in 683 soybeans. The 35
+predictors are mostly categorical and include information on the environmental
+conditions (e.g., temperature, precipitation) and plant conditions (e.g., left
+spots, mold growth). The outcome labels consist of 19 distinct classes.
+
+
+#### 3.2 (a) Investigate the frequency distributions for the categorical predictors. Are any of the distributions degenerate in the ways discussed earlier in this chapter?
+
+#### solution:
+When there is no variance in  variables i.e. when a variable has only one single unique value (a constant with probability of 1) or the existance of variables with near zero varaince indicating high frequency of a single value and very low frequency of some other unique values - the distributions of those variables are considered degenerate. The nearZeroVar function in Caret package can be used to indentify the zero or near-zero variances in variables:
+
+load data:
+```{r}
+Soybean
+str(Soybean)
+```
+
+
+Degenerate distributions in Soybean data:
+```{r}
+dgenDF <- data.frame (nearZeroVar(Soybean[,1:36], names = TRUE, saveMetrics = TRUE))
+dgenDF[dgenDF$zeroVar==TRUE | dgenDF$nzv==TRUE,]
+```
+
+The above table indicate three degenerate distributions with near-zero variances.
+
+#### Answer:
+The distributions of leaf.mild, mycelium and sclerotia are degenerate because all of these variables represent non-zero variances
+
+
+
+#### 3.2(b) Roughly 18% of the data are missing. Are there particular predictors that are more likely to be missing? Is the pattern of missing data related to the classes?
+
+#### solution:
+```{r}
+data(Soybean)
+```
+
+
+Cheking for missing values:
+```{r}
+Na_soy <- as.matrix(colSums(is.na(Soybean)))
+colnames(Na_soy) <- paste("Missing values")
+Na_ratio <- round(Na_soy[,"Missing values"]/nrow(Soybean),3)
+
+Na_soy <- cbind(Na_soy,Na_ratio)
+Na_soy
+```
+
+The above matrix shows certain predictor varaibles (hail, sever, seed.tmt, lodging, ) have the most missing values. 
+
+
+In order to find if the missing values are related to the classes, all the rows with missing values were filtered and then rows were grouped by classes. 
+```{r}
+Na_data <- filter(Soybean,!complete.cases(Soybean)) %>% group_by(Class)
+Na_data
+```
+
+
+Finally the count of the classes were considered to find which class causing the most missing values.
+```{r}
+count(Na_data,Class,sort=TRUE)
+```
+
+#### Answer:
+The variables- hail, sever, seed.tmt, lodging have the most missing values. The missing values do seem to be related with classes. It is also apparent that  phytophthora-rot class causing the most missing values.
+
+
+
+
+#### 3.2 (c) Develop a strategy for handling missing data, either by eliminating predictors or imputation.
+
+#### solution::
+
+Total rows with missing values:
+```{r}
+nrow(filter(Soybean,!complete.cases(Soybean)))
+```
+
+Total rows in the dataset:
+```{r}
+nrow(Soybean)
+```
+
+percentage of missing values
+```{r}
+(nrow(filter(Soybean,!complete.cases(Soybean))))/nrow(Soybean)
+```
+
+#### Answer:
+If the total rows with missing values (121)were removed from the original data the remaining data is still significant (562) so based on the context or type of models and research question it is possible to remove all the rows with missing values. On the other hand R packages such as MICE,Amelia, missForest, Hmisc and mi can be used for imputing missing values.
+
+
+
