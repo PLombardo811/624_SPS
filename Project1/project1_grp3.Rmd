@@ -1,0 +1,97 @@
+---
+title: "project1"
+Group: 3
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(readxl)))
+suppressMessages(suppressWarnings(library(forecast)))
+suppressMessages(suppressWarnings(library(fpp2)))
+
+```
+
+
+```{r}
+grp3DF <- read_excel("Set for Class.xls", sheet = 'group3')
+grp3DF <- grp3DF[,-2]
+grp3DF$Dates <- as.Date(grp3DF$SeriesInd, origin="1900-01-01")
+typeof(grp3DF$Dates)
+
+
+grp3DF
+```
+
+The plot below shows a clear upward trend in the data
+```{r}
+plot(grp3DF$Var07~grp3DF$SeriesInd)
+```
+
+```{r}
+startW <- as.numeric(format(grp3DF$Dates[1], "%W"))
+startD <- as.numeric(format(grp3DF$Dates[1], "%j"))
+endW <- as.numeric(format(grp3DF$Dates[1622], "%W"))
+endD <- as.numeric(format(grp3DF$Dates[1622], "%j"))
+
+```
+
+#### Time Series data for daily frequency
+```{r}
+ts_daily <- tsData <- ts(grp3DF$Var07,start = c(2011,startD),end = c(2017,endD),frequency = 365)
+
+autoplot(ts_daily)
+```
+
+
+
+#### Test for stationarity
+
+### TO DO
+
+
+### Exploratory Analysis for daily data:
+```{r}
+ggtsdisplay(ts_daily)
+```
+
+
+
+
+#### Time Series data for weekly frequency
+```{r}
+#tsData <- ts(grp3DF$Var07,grp3DF$Dates[1],grp3DF$Dates[1622],1)
+ts_weekly <- ts(grp3DF$Var07,start = c(2011,startW), end = c(2017,endW), frequency = 52)
+autoplot(ts_weekly)
+```
+
+### decomposition of weekly time series
+```{r}
+autoplot(decompose(ts_weekly))
+```
+
+
+
+#### Time Series data for monthly frequency
+```{r}
+ts_monthly <- ts(grp3DF$Var07,start = c(2011,5), end = c(2017,10), frequency = 12)
+autoplot(ts_monthly)
+
+```
+
+
+### decomposition of monthly time series
+```{r}
+autoplot(decompose(ts_monthly))
+
+```
+
+
+```{r}
+
+```
+
