@@ -1,0 +1,117 @@
+---
+title: "project1"
+Group: 3
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(readxl)))
+suppressMessages(suppressWarnings(library(forecast)))
+suppressMessages(suppressWarnings(library(fpp2)))
+suppressMessages(suppressWarnings(library(zoo)))
+suppressMessages(suppressWarnings(library(padr)))
+```
+
+
+```{r}
+grp3DF <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/Set%20for%20Class.csv")
+```
+```{r}
+grp3DF <- grp3DF[,-2]
+grp3DF$Dates <- as.Date(grp3DF$SeriesInd, origin="1900-01-02")
+grp3DF$Day <- weekdays(as.Date(grp3DF$Dates))
+grp3DF_Train <- subset(grp3DF, SeriesInd < 43022)
+NA_grp3DF <- grp3DF_Train[rowSums(is.na(grp3DF_Train)) > 0,]
+grp3DF_Train
+NA_grp3DF
+```
+```{r}
+grp3DF_Train_2017 <- subset(grp3DF_Train, grp3DF_Train$Dates > '2017-01-01' & grp3DF_Train$Dates < '2017-12-31')
+grp3DF_Mean1 <- mean(grp3DF_Train_2017$Var01, na.rm=TRUE)
+grp3DF_Mean3 <- mean(grp3DF_Train_2017$Var03, na.rm=TRUE)
+grp3DF_Mean5 <- mean(grp3DF_Train_2017$Var05, na.rm=TRUE)
+grp3DF_Mean7 <- mean(grp3DF_Train_2017$Var07, na.rm=TRUE)
+```
+```{r}
+grp3DF_Train$Var01[is.na(grp3DF_Train$Var01)] <- grp3DF_Mean1
+grp3DF_Train$Var03[is.na(grp3DF_Train$Var03)] <- grp3DF_Mean3
+grp3DF_Train$Var05[is.na(grp3DF_Train$Var05)] <- grp3DF_Mean5
+grp3DF_Train$Var07[is.na(grp3DF_Train$Var07)] <- grp3DF_Mean7
+```
+```{r}
+grp3DF_Train2 <- pad(grp3DF_Train)
+grp3DF_Train2$Day <- weekdays(as.Date(grp3DF_Train2$Dates))
+grp3DF_Train2<- na.locf(grp3DF_Train2)
+grp3DF_Train2
+```
+
+The plot below shows a clear upward trend in the data
+```{r}
+plot(grp3DF_Train$Var07~grp3DF_Train$SeriesInd)
+plot(grp3DF_Train2$Var07~grp3DF_Train2$SeriesInd)
+```
+
+```{r}
+startW <- as.numeric(format(grp3DF_Train$Dates[1], "%W"))
+startD <- as.numeric(format(grp3DF_Train$Dates[1], "%j"))
+endW <- as.numeric(format(grp3DF_Train$Dates[1622], "%W"))
+endD <- as.numeric(format(grp3DF_Train$Dates[1622], "%j"))
+```
+
+#### Time Series data for daily frequency
+```{r}
+ts_daily <- tsData <- ts(grp3DF_Train$Var07,start = c(2011,startD),end = c(2017,endD),frequency = 365)
+autoplot(ts_daily)
+ts_daily2 <- tsData <- ts(grp3DF_Train2$Var07,start = c(2011,startD),end = c(2017,endD),frequency = 365)
+autoplot(ts_daily2)
+```
+
+
+
+#### Test for stationarity
+
+### TO DO
+
+
+### Exploratory Analysis for daily data:
+```{r}
+ggtsdisplay(ts_daily2)
+```
+
+
+
+
+#### Time Series data for weekly frequency
+```{r}
+#tsData <- ts(grp3DF$Var07,grp3DF$Dates[1],grp3DF$Dates[1622],1)
+ts_weekly <- ts(grp3DF_Train2$Var07,start = c(2011,startW), end = c(2017,endW), frequency = 52)
+autoplot(ts_weekly)
+```
+
+### decomposition of weekly time series
+```{r}
+autoplot(decompose(ts_weekly))
+```
+
+
+
+#### Time Series data for monthly frequency
+```{r}
+ts_monthly <- ts(grp3DF_Train2$Var07,start = c(2011,5), end = c(2017,10), frequency = 12)
+autoplot(ts_monthly)
+```
+
+
+### decomposition of monthly time series
+```{r}
+autoplot(decompose(ts_monthly))
+```
+
+
+```{r}
+```
