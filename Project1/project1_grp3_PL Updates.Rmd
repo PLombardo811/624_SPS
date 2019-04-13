@@ -3,6 +3,11 @@ title: "project1"
 Group: 3
 output: html_document
 ---
+###### Introduction:
+A dataset was provided with 1762 records and 8 variables. 1622 rows among the total 1762 rows had values for the variables and were meant to be used to train models while rest 140 records would be used for predicting the values using the models. The best results would be submitted along with a report. Each group is responsible to predict two variables.
+
+The group 3 is responsible to predict two variables: Var05 and  Var07
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
