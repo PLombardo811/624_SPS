@@ -1,0 +1,285 @@
+---
+title: "project1"
+Group: 3
+output: html_document
+---
+
+###### Introduction:
+A dataset was provided with 1762 records and 8 variables. 1622 rows among the total 1762 rows had values for the variables and were meant to be used to train models while rest 140 records would be used for predicting the values using the models. The best results would be submitted along with a report. Each group is responsible to predict two variables.
+
+The group 3 is responsible to predict two variables: Var05 and  Var07
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load necessary libraries
+```{r}
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(readxl)))
+suppressMessages(suppressWarnings(library(forecast)))
+suppressMessages(suppressWarnings(library(fpp2)))
+suppressMessages(suppressWarnings(library(zoo)))
+suppressMessages(suppressWarnings(library(padr)))
+suppressMessages(suppressWarnings(library(ggfortify)))
+suppressMessages(suppressWarnings(library(gridExtra)))
+```
+### Loading data:
+The subsets of the original data were extracted from the provided excel dataset, converted to .csv format and then stored in the group's GitHub repository. This data were then imported into R environment and converted into 6 dataframe represnting the six subsets in the original data.
+```{r}
+grp3DF_S01 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S01.csv", fileEncoding="UTF-8-BOM")
+grp3DF_S02 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S02.csv", fileEncoding="UTF-8-BOM")
+grp3DF_S03 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S03.csv", fileEncoding="UTF-8-BOM")
+grp3DF_S04 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S04.csv", fileEncoding="UTF-8-BOM")
+grp3DF_S05 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S05.csv", fileEncoding="UTF-8-BOM")
+grp3DF_S06 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S06.csv", fileEncoding="UTF-8-BOM")
+```
+
+### Data prepration and exploration 
+After a closer look at the datasets it was apparent that there is a consistent pattern of missing data after every 5 rows. The SeriesInd field indicates that generally two periods are missing after every 5 periods with  exceptions of some longer periods of missing data. Since no information was available about the nature of the data and since the pattern of missing data along with datatypes of the variables are strongly indicative of finacial transactions i.e. data for 5 business days and missing data for weekends or long weekends, it was assumed that these are financial data and SeriesInd values are numerical represntation of dates. With that assumption a date field was added to take advantage of date data type in the analysis. An additional 'Day' field was also added for better understanding of the data. 
+
+Since only two variables would need to be forecasted for each group of data, datasets were revised so that they contain only the relevant variables. Following are the names of the variables and relevant group:
+
+S01 - Forecast  Var01, Var02
+S02 - Forecast  Var02, Var03
+S03 - Forecast  Var05, Var07
+S04 - Forecast  Var01, Var02
+S05 - Forecast  Var02, Var03
+S06 - Forecast  Var05, Var07
+
+
+```{r}
+get_data <- function (grp3DF,col1,col2) {
+  grp3DF <- grp3DF[,c("SeriesInd","group",col1, col2)]
+  grp3DF$Dates <- as.Date(grp3DF$SeriesInd, origin="1900-01-02")
+  grp3DF$Day <- weekdays(as.Date(grp3DF$Dates))
+  return(grp3DF)
+}
+S01_df <- get_data(grp3DF_S01,"Var01","Var02")
+S02_df <- get_data(grp3DF_S02,"Var02","Var03")
+S03_df <- get_data(grp3DF_S03,"Var05","Var07")
+S04_df <- get_data(grp3DF_S04,"Var01","Var02")
+S05_df <- get_data(grp3DF_S05,"Var02","Var03")
+S06_df <- get_data(grp3DF_S06,"Var05","Var07")
+```
+
+As stated earlier, first 1622 row will be used for anlysis and train the models whereas the last 140 records will be used for forecasting, each datasets were seperated into two groups: 
+
+```{r}
+S01_df_train <- S01_df[1:1622,]
+S01_df_forecast <- S01_df[1623:nrow(S01_df),]
+S02_df_train <- S02_df[1:1622,]
+S02_df_forecast <- S02_df[1623:nrow(S02_df),]
+S03_df_train <- S03_df[1:1622,]
+S03_df_forecast <- S03_df[1623:nrow(S03_df),]
+S04_df_train <- S04_df[1:1622,]C
+S04_df_forecast <- S04_df[1623:nrow(S04_df),]
+S05_df_train <- S05_df[1:1622,]
+S05_df_forecast <- S05_df[1623:nrow(S05_df),]
+S06_df_train <- S06_df[1:1622,]
+S06_df_forecast <- S06_df[1623:nrow(S06_df),]
+```
+
+
+
+
+
+As we assumed these datasets represent finacial data for  certain time periods, time series data were created for each variable in each group. As was discussed earlier data are missing for weekends. Although data are missing - that does not mean values of the variables did not exist on the weekends. In order to address this issue two approaches were considered:
+
+1. Data would be treated as they were but the frequency for daily cicle would be changed to 240 days (considering 2 weekends in each week and other usual holidays in USA)
+
+2. Missing weekends and holidays would be added to the data and the missing values would be added trough imputation. While naive forecasting (that suggest last period's actuals are  this period's forecast) maight be appropriate for financial product, but linear interpolation could also be a better choice for univariate time series data (Moritz et al., 2015, https://arxiv.org/ftp/arxiv/papers/1510/1510.03924.pdf)  
+
+```{r}
+startW <- as.numeric(format(S06_df_train$Dates[1], "%W"))
+startD <- as.numeric(format(S06_df_train$Dates[1], "%j"))
+endW <- as.numeric(format(S06_df_train$Dates[1622], "%W"))
+endD <- as.numeric(format(S06_df_train$Dates[1622], "%j"))
+```
+
+```{r}
+ts_df <- function(df){
+  df2 <- pad(df)
+  df2$Day <- weekdays(as.Date(df2$Dates))
+  df2<- na.locf(df2)
+  return(df2)
+}
+```
+
+#### Function to create Time-Series datasets
+
+```{r}
+ts_daily <- function(df, freq){
+  #df2 <- pad(df)
+  #df2$Day <- weekdays(as.Date(df2$Dates))
+  #df2<- na.locf(df2)
+  
+ #ts1 <- (ts(df2[,3],start = c(2011,startD),end = c(2017,endD),frequency = 365))
+ #ts2 <- (ts(df2[,4],start = c(2011,startD),end = c(2017,endD),frequency = 365))
+ ts1 <- (ts(df[,3],frequency = freq))
+ ts2 <- (ts(df[,4],frequency = freq))
+ ts1 <- na.interp(ts1)
+ ts2 <- na.interp(ts2)
+ return(list(a = ts1,b = ts2))
+}
+# ts_S01 <- ts_daily(S01_df_train,7)
+# ts_S01_var01 <- ts_S01$a
+# ts_S01_var02 <- ts_S01$b
+# 
+# ts_S02  <- ts_daily(S02_df_train,7)
+# ts_S02_var02 <- ts_S02$a
+# ts_S01_var03 <- ts_S02$b
+# ts_S03 <- ts_daily(ts_df(S03_df_train),7)
+# ts_S03_var05 <- ts_S03$a
+# ts_S03_var07 <- ts_S03$b
+# ts_S04 <- ts_daily(S04_df_train,7)
+# ts_S04_var01 <- ts_S04$a
+# ts_S04_var02 <- ts_S04$b
+# 
+# ts_S05 <- ts_daily(S05_df_train,7)
+# ts_S05_var02 <- ts_S05$a
+# ts_S05_var03 <- ts_S05$b
+# 
+# ts_S06 <- ts_daily(S06_df_train,7)
+# ts_S06_var05 <- ts_S06$a
+# ts_S06_var07 <- ts_S06$b
+ts_multi <- function(df){
+  
+ ts1 <- (msts(df[,3],seasonal.periods=c(7,365.25)))
+ ts2 <- (msts(df[,4],seasonal.periods=c(7,365.25)))
+ ts1 <- na.interp(ts1)
+ ts2 <- na.interp(ts2)
+ return(list(a = ts1,b = ts2))
+}
+```
+
+
+
+Function to create exploratory times series plots 
+```{r }
+ts_plot <- function(tsobject,grp, conames){
+p1 <- autoplot(tsobject$a, ts.colour ='blue', xlab = 'Dates',main = paste("Line plot of",conames[3],sep=', ',grp))
+p2 <- autoplot(tsobject$b, ts.colour ='green', xlab = 'Dates',main = paste("Line plot of",conames[4],sep=', ',grp))
+p3 <- ggAcf(tsobject$a,main= paste("ACF plot for",conames[3],',',grp))
+p4 <- ggPacf(tsobject$a,main= paste("PACF plot for",conames[3],',',grp))
+p5 <- ggAcf(tsobject$b,main= paste("ACF plot for",conames[4],',',grp))
+p6 <- ggPacf(tsobject$b,main= paste("PACF plot for",conames[4],',',grp))
+#p7 <- ggseasonplot(ts_S03$a, col = 'blue', main= )
+grid.arrange(p1,p2,arrangeGrob(p3,p4,nrow = 1),arrangeGrob(p5,p6,nrow = 1),nrow=2)
+}
+ts_decompose <- function(tsobject,grp, conames){
+  p1 = autoplot(decompose(tsobject$a), main = paste("Decomposition of times series for ",conames[3],sep=', ',grp) )
+  p2= autoplot(decompose(tsobject$b), main = paste("Decomposition of times series for ",conames[4],sep=', ',grp) )
+  
+  grid.arrange(p1,p2,nrow=1)
+}
+```
+
+### Analysis for S02
+
+Time-series data sets were created for both variables in S02, these ts datasets contain imputed values for weekends and holidays. Since the datsets represnt longer periods of times (multiple years) multi-seasonal time serires (msts) were also created to examine. The frequencies 0f 7 and 365.25 were used in msts as this is common to have weekly and annual seasonality for daily data.
+```{r}
+# ts for weekly frequencies
+ts_S02 <- ts_daily(ts_df(S02_df_train),7)
+# ts for yearly frequencies
+ts_S02_multi <- ts_multi(ts_df(S02_df_train))
+```
+
+
+#### Visual exploration:
+
+Plots of ts with weekly seasonality 
+```{r fig.height= 6 , fig.width=15}
+ts_plot(ts_S02,"Group S02",names(S02_df_train))
+```
+Va02 has a downside trend and ACF declines as lag increase also indicate that there is a trend in the series. The scalloped shape of ACF also indicate there is seasonality  So we try STL decomposition firt  
+
+
+### STL 
+```{r}
+
+
+ts_S02$a %>%
+  stl(t.window=7, s.window="periodic", robust=TRUE) %>%
+  autoplot()
+
+fit_var02 <- stl(ts_S02$a, t.window=7, s.window="periodic",
+  robust=TRUE)
+
+fit_var02 %>% forecast(method="naive",h=140) %>%
+  autoplot() 
+
+```
+we first fit a STL decomposition model 
+#### ets:
+```{r}
+(fit.ets <- ets(ts_S02$a))
+checkresiduals(fit.ets)
+fit.ets %>% forecast(h=50) %>%
+  autoplot() 
+```
+the ETS model doesn't look very good becasue there the ACF showing that the residuals is not wite nocie and there is a huge spike in the frequency distribuction plot. In addition the variation of the prediction is getting bigger which doesn't match the trend of the series. So probably won't use the model  
+
+
+From the ACF plot, we can see there is autocorrelation in the series so we can try a ARIMA model. since the the ACF of the series is groping slowing, we know that the series is not stationary. After taking one difference the ACF drop quickly to 0 and the box test also showing the the series is stationary after first difference. In addtiotn the PACF plot has a huge spike in lag 1 and not obverous spike in other lags. so an ARIMA(1,1,0) model may be a good fit.
+
+#### arIma
+
+
+```{r}
+ts_S02$a %>% 
+diff() %>%
+acf()
+ndiffs(ts_S02$a)
+Box.test(diff(ts_S02$a), lag=7, type="Ljung-Box")
+ggAcf(ts_S02$a,main="ACF")
+ggPacf(ts_S02$a,main="PACF")
+(fit <- Arima(ts_S02$a, order=c(1,1,0)))
+
+(fit <- Arima(ts_S02$a, order=c(1,1,0), seasonal=c(1,0,1)))
+checkresiduals(fit)
+```
+The ACF of the residuals looks similar as  the ETS model. but the frequency plot looks good on  which suggest that ARIMA(1,1,0) is better than ETS but there can be a better ARIMA model 
+
+So we are going to find the best ARIMA model using auto arima
+```{r}
+(fit.arima <- auto.arima(ts_S02$a))
+checkresiduals(fit.arima)
+accuracy(fit.arima)
+fit.arima %>% forecast(h=140)
+```
+The ACF of the residuals look much better now since ACF for almost all the lags are close to 0 and the frequency plot also showing that the  residuals is normally distribucted. In addtion the AIC of the auto arima model is also better than arima(1,1,0) model  
+
+## Var03
+```{r}
+ts_S02$b %>%
+  stl(t.window=7, s.window="periodic", robust=TRUE) %>%
+  autoplot()
+
+fit_var02 <- stl(ts_S02$b, t.window=7, s.window="periodic",
+  robust=TRUE)
+
+fit_var02 %>% forecast(method="naive",h=140) %>%
+  autoplot() 
+(fit.ets <- ets(ts_S02$b))
+checkresiduals(fit.ets)
+fit.ets %>% forecast(h=140) %>%
+  autoplot() 
+```
+
+```{r}
+(fit.arima <- auto.arima(ts_S02$b))
+checkresiduals(fit.arima)
+accuracy(fit.arima)
+fit.arima %>% forecast(h=140) %>%
+  autoplot() 
+
+
+```
+the residual plot shows that the model is a good fit since the ACF of residuals are close to 0 and residuals are normally distribucted 
+
+```{r}
+fit.arima %>% forecast(h=140)
+
+```
