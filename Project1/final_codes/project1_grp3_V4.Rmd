@@ -511,9 +511,15 @@ View(df_AIC_BIC)
 Predit value:
 Since stlf_arima_BoxCox is proved to be the best, this model will be used to forecast the values. Similar model will be used for both variables as they behave the same:
 ```{r}
-predict_var03 <- round(as.numeric(stlf_arima_fit$mean),2)
+predict_var05 <- round(as.numeric(stlf_arima_fit$mean),2)
 predict_var07 <- round(as.numeric(var07_stlf_arima$mean),2)
-df_predict <- data.frame(predict_var03,predict_var07)
+df_predict <- data.frame(predict_var05,predict_var07)
+S03_df_NA <- S03_df[1623:1762,]
+S03_df_NA$Var05 <- df_predict$predict_var05
+S03_df_NA$Var07 <- df_predict$predict_var07
+S03_df_NA
+S03_df_train
+S03_df_final <- rbind(S03_df_train, S03_df_NA)
 write.csv(df_predict,"predict_S03.csv")
 ```
 ```{r}
@@ -608,6 +614,10 @@ var02_stlf_arima <- stlf(ts_S01_nowkend_annual$b, s.window = "period", method="a
 predict_var01 <- round(as.numeric(var01_stlf_arima$mean),2)
 predict_var02 <- round(as.numeric(var02_stlf_arima$mean),2)
 df_predict <- data.frame(predict_var01,predict_var02)
+S01_df_NA <- S01_df[1623:1762,]
+S01_df_NA$Var01 <- df_predict$predict_var01
+S01_df_NA$Var02 <- df_predict$predict_var02
+S01_df_final <- rbind(S01_df_train, S01_df_NA)
 write.csv(df_predict,"predict_S01.csv")
 ```
 S02
@@ -617,6 +627,10 @@ var03_stlf_arima <- stlf(ts_S02_nowkend_annual$b, s.window = "period", method="a
 predict_var02 <- round(as.numeric(var02_stlf_arima$mean),2)
 predict_var03 <- round(as.numeric(var03_stlf_arima$mean),2)
 df_predict <- data.frame(predict_var02,predict_var03)
+S02_df_NA <- S02_df[1623:1762,]
+S02_df_NA$Var02 <- df_predict$predict_var02
+S02_df_NA$Var03 <- df_predict$predict_var03
+S02_df_final <- rbind(S02_df_train, S02_df_NA)
 write.csv(df_predict,"predict_S02.csv")
 ```
 S04
@@ -626,6 +640,10 @@ var02_stlf_arima <- stlf(ts_S04_nowkend_annual$b, s.window = "period", method="a
 predict_var01 <- round(as.numeric(var01_stlf_arima$mean),2)
 predict_var02 <- round(as.numeric(var02_stlf_arima$mean),2)
 df_predict <- data.frame(predict_var01,predict_var02)
+S04_df_NA <- S04_df[1623:1762,]
+S04_df_NA$Var01 <- df_predict$predict_var01
+S04_df_NA$Var02 <- df_predict$predict_var02
+S04_df_final <- rbind(S04_df_train, S04_df_NA)
 write.csv(df_predict,"predict_S04.csv")
 ```
 S05
@@ -635,8 +653,13 @@ var03_stlf_arima <- stlf(ts_S05_nowkend_annual$b, s.window = "period", method="a
 predict_var02 <- round(as.numeric(var02_stlf_arima$mean),2)
 predict_var03 <- round(as.numeric(var03_stlf_arima$mean),2)
 df_predict <- data.frame(predict_var02,predict_var03)
-write.csv(df_predict,"predict_S05.csv")
+S05_df_NA <- S05_df[1623:1762,]
+S05_df_NA$Var02 <- df_predict$predict_var02
+S05_df_NA$Var03 <- df_predict$predict_var03
+S05_df_final <- rbind(S05_df_train, S05_df_NA)
+write.csv(S05_df_final,"predict_S05.csv")
 ```
+
 s06
 ```{r}
 var05_stlf_arima <- stlf(ts_S06_nowkend_annual$a, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S06_nowkend_annual$a), h=140 )
@@ -644,5 +667,9 @@ var07_stlf_arima <- stlf(ts_S06_nowkend_annual$b, s.window = "period", method="a
 predict_var05 <- round(as.numeric(var05_stlf_arima$mean),2)
 predict_var07 <- round(as.numeric(var07_stlf_arima$mean),2)
 df_predict <- data.frame(predict_var05,predict_var07)
-write.csv(df_predict,"predict_S06.csv")
+S06_df_NA <- S06_df[1623:1762,]
+S06_df_NA$Var05 <- df_predict$predict_var05
+S06_df_NA$Var07 <- df_predict$predict_var07
+S06_df_final <- rbind(S06_df_train, S06_df_NA)
+write.csv(S06_df_final,"predict_S06.csv")
 ```
