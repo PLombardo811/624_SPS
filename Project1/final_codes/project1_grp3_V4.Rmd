@@ -520,7 +520,7 @@ S03_df_NA$Var07 <- df_predict$predict_var07
 S03_df_NA
 S03_df_train
 S03_df_final <- rbind(S03_df_train, S03_df_NA)
-write.csv(df_predict,"predict_S03.csv")
+write.csv(S03_df_final,"predict_S03.csv")
 ```
 ```{r}
 ts_S01_nowkend_annual <- ts_daily(S01_df_train,240)
@@ -618,7 +618,7 @@ S01_df_NA <- S01_df[1623:1762,]
 S01_df_NA$Var01 <- df_predict$predict_var01
 S01_df_NA$Var02 <- df_predict$predict_var02
 S01_df_final <- rbind(S01_df_train, S01_df_NA)
-write.csv(df_predict,"predict_S01.csv")
+write.csv(S01_df_final,"predict_S01.csv")
 ```
 S02
 ```{r}
@@ -631,7 +631,7 @@ S02_df_NA <- S02_df[1623:1762,]
 S02_df_NA$Var02 <- df_predict$predict_var02
 S02_df_NA$Var03 <- df_predict$predict_var03
 S02_df_final <- rbind(S02_df_train, S02_df_NA)
-write.csv(df_predict,"predict_S02.csv")
+write.csv(S02_df_final,"predict_S02.csv")
 ```
 S04
 ```{r}
@@ -644,7 +644,7 @@ S04_df_NA <- S04_df[1623:1762,]
 S04_df_NA$Var01 <- df_predict$predict_var01
 S04_df_NA$Var02 <- df_predict$predict_var02
 S04_df_final <- rbind(S04_df_train, S04_df_NA)
-write.csv(df_predict,"predict_S04.csv")
+write.csv(S04_df_final,"predict_S04.csv")
 ```
 S05
 ```{r}
