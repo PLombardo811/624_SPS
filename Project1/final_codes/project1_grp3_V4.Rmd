@@ -1,0 +1,648 @@
+---
+title: "project1"
+Group: 3
+output: html_document
+---
+
+
+###### Introduction:
+A dataset was provided with 1762 records and 8 variables. 1622 rows among the total 1762 rows had values for the variables and were meant to be used to train models while rest 140 records would be used for predicting the values using the models. The best results would be submitted along with a report. Each group is responsible to predict two variables.
+
+The group 3 is responsible to predict two variables: Var05 and  Var07
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Load necessary libraries
+```{r}
+suppressMessages(suppressWarnings(library(tidyverse)))
+suppressMessages(suppressWarnings(library(readxl)))
+suppressMessages(suppressWarnings(library(forecast)))
+suppressMessages(suppressWarnings(library(fpp2)))
+suppressMessages(suppressWarnings(library(zoo)))
+suppressMessages(suppressWarnings(library(padr)))
+suppressMessages(suppressWarnings(library(ggfortify)))
+suppressMessages(suppressWarnings(library(gridExtra)))
+```
+### Loading data:
+The subsets of the original data were extracted from the provided excel dataset, converted to .csv format and then stored in the group's GitHub repository. This data were then imported into R environment and converted into 6 dataframe represnting the six subsets in the original data.
+```{r}
+grp3DF_S01 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S01.csv", fileEncoding="UTF-8-BOM")
+grp3DF_S02 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S02.csv", fileEncoding="UTF-8-BOM")
+grp3DF_S03 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S03.csv", fileEncoding="UTF-8-BOM")
+grp3DF_S04 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S04.csv", fileEncoding="UTF-8-BOM")
+grp3DF_S05 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S05.csv", fileEncoding="UTF-8-BOM")
+grp3DF_S06 <- read.csv("https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project1/data/S06.csv", fileEncoding="UTF-8-BOM")
+```
+
+### Data prepration and exploration 
+After a closer look at the datasets it was apparent that there is a consistent pattern of missing data after every 5 rows. The SeriesInd field indicates that generally two periods are missing after every 5 periods with  exceptions of some longer periods of missing data. Since no information was available about the nature of the data and since the pattern of missing data along with datatypes of the variables are strongly indicative of finacial transactions i.e. data for 5 business days and missing data for weekends or long weekends, it was assumed that these are financial data and SeriesInd values are numerical represntation of dates. With that assumption a date field was added to take advantage of date data type in the analysis. An additional 'Day' field was also added for better understanding of the data. 
+
+Since only two variables would need to be forecasted for each group of data, datasets were revised so that they contain only the relevant variables. Following are the names of the variables and relevant group:
+
+S01 - Forecast  Var01, Var02
+S02 - Forecast  Var02, Var03
+S03 - Forecast  Var05, Var07
+S04 - Forecast  Var01, Var02
+S05 - Forecast  Var02, Var03
+S06 - Forecast  Var05, Var07
+
+
+```{r}
+get_data <- function (grp3DF,col1,col2) {
+  grp3DF <- grp3DF[,c("SeriesInd","group",col1, col2)]
+  grp3DF$Dates <- as.Date(grp3DF$SeriesInd, origin="1900-01-02")
+  grp3DF$Day <- weekdays(as.Date(grp3DF$Dates))
+  return(grp3DF)
+}
+S01_df <- get_data(grp3DF_S01,"Var01","Var02")
+S02_df <- get_data(grp3DF_S02,"Var02","Var03")
+S03_df <- get_data(grp3DF_S03,"Var05","Var07")
+S04_df <- get_data(grp3DF_S04,"Var01","Var02")
+S05_df <- get_data(grp3DF_S05,"Var02","Var03")
+S06_df <- get_data(grp3DF_S06,"Var05","Var07")
+```
+
+As stated earlier, first 1622 row will be used for anlysis and train the models whereas the last 140 records will be used for forecasting, each datasets were seperated into two groups: 
+
+```{r}
+S01_df_train <- S01_df[1:1622,]
+S01_df_forecast <- S01_df[1623:nrow(S01_df),]
+S02_df_train <- S02_df[1:1622,]
+S02_df_forecast <- S02_df[1623:nrow(S02_df),]
+S03_df_train <- S03_df[1:1622,]
+S03_df_forecast <- S03_df[1623:nrow(S03_df),]
+S04_df_train <- S04_df[1:1622,]
+S04_df_forecast <- S04_df[1623:nrow(S04_df),]
+S05_df_train <- S05_df[1:1622,]
+S05_df_forecast <- S05_df[1623:nrow(S05_df),]
+S06_df_train <- S06_df[1:1622,]
+S06_df_forecast <- S06_df[1623:nrow(S06_df),]
+```
+
+
+
+
+
+
+As we assumed these datasets represent finacial data for  certain time periods, time series data were created for each variable in each group. As was discussed earlier data are missing for weekends. Although data are missing - that does not mean values of the variables did not exist on the weekends. In order to address this issue two approaches were considered:
+
+1. Data would be treated as they were but the frequency for daily cicle would be changed to 240 days (considering 2 weekends in each week and other usual holidays in USA)
+
+2. Missing weekends and holidays would be added to the data and the missing values would be added trough imputation. While naive forecasting (that suggest last period's actuals are  this period's forecast) maight be appropriate for financial product, but linear interpolation could also be a better choice for univariate time series data (Moritz et al., 2015, https://arxiv.org/ftp/arxiv/papers/1510/1510.03924.pdf)  
+
+```{r}
+startW <- as.numeric(format(S06_df_train$Dates[1], "%W"))
+startD <- as.numeric(format(S06_df_train$Dates[1], "%j"))
+endW <- as.numeric(format(S06_df_train$Dates[1622], "%W"))
+endD <- as.numeric(format(S06_df_train$Dates[1622], "%j"))
+train_window_end <- as.numeric(format(S06_df_train$Dates[1481], "%j"))
+test_window_start <- as.numeric(format(S06_df_train$Dates[1482], "%j"))
+```
+
+
+```{r}
+ts_df <- function(df){
+  df2 <- pad(df)
+  df2$Day <- weekdays(as.Date(df2$Dates))
+  df2[,3]<- na.locf(df2[,3])
+  df2[,4]<- na.locf(df2[,4])
+  return(df2)
+}
+```
+
+#### Function to create Time-Series datasets
+
+```{r}
+ts_daily <- function(df, freq){
+  #df2 <- pad(df)
+  #df2$Day <- weekdays(as.Date(df2$Dates))
+  #df2<- na.locf(df2)
+  
+ #ts1 <- (ts(df2[,3],start = c(2011,startD),end = c(2017,endD),frequency = 365))
+ #ts2 <- (ts(df2[,4],start = c(2011,startD),end = c(2017,endD),frequency = 365))
+ ts1 <- (ts(df[,3],frequency = freq))
+ ts2 <- (ts(df[,4],frequency = freq))
+ ts1 <- na.interp(ts1)
+ ts2 <- na.interp(ts2)
+ return(list(a = ts1,b = ts2))
+}
+ ts_S01 <- ts_daily(S01_df_train,7)
+ ts_S01_var01 <- ts_S01$a
+ ts_S01_var02 <- ts_S01$b
+# 
+ ts_S02  <- ts_daily(S02_df_train,7)
+ ts_S02_var02 <- ts_S02$a
+ ts_S01_var03 <- ts_S02$b
+ ts_S03 <- ts_daily(ts_df(S03_df_train),7)
+ ts_S03_var05 <- ts_S03$a
+ ts_S03_var07 <- ts_S03$b
+ ts_S04 <- ts_daily(S04_df_train,7)
+ ts_S04_var01 <- ts_S04$a
+ ts_S04_var02 <- ts_S04$b
+# 
+ ts_S05 <- ts_daily(S05_df_train,7)
+ ts_S05_var02 <- ts_S05$a
+ ts_S05_var03 <- ts_S05$b
+# 
+ ts_S06 <- ts_daily(S06_df_train,7)
+ ts_S06_var05 <- ts_S06$a
+ ts_S06_var07 <- ts_S06$b
+ts_multi <- function(df,wkfreq,annualfreq){
+  
+ ts1 <- (msts(df[,3],seasonal.periods=c(wkfreq,wkfreq)))
+ ts2 <- (msts(df[,4],seasonal.periods=c(wkfreq,wkfreq)))
+ ts1 <- na.interp(ts1)
+ ts2 <- na.interp(ts2)
+ return(list(a = ts1,b = ts2))
+}
+```
+
+function to check seasonality:
+```{r}
+check_seasonality <- function (ts){
+  fit <- tbats(ts)
+  seasonality <- !is.null(fit$seasonal)
+  
+  return(seasonality)
+  
+}
+plot_seasonality <- function(ts_weekly,ts_annual, variable, grp){
+  fit <- stl(ts_weekly, s.window="periodic")
+  fit1 <-stl(ts_annual, s.window="periodic") 
+ p <- autoplot(cbind(
+	    
+	    Seasonal=seasonal(fit),
+  	  Trend=trendcycle(fit),
+	    Remainder=remainder(fit)),
+      facets=TRUE) + ggtitle(paste("weekly seasonality of",variable,',',grp))+
+      ylab("") + xlab('weeks') 
+ 
+ p1 <- autoplot(cbind(
+	    
+	    Seasonal=seasonal(fit1),
+  	  Trend=trendcycle(fit1),
+	    Remainder=remainder(fit1)),
+      facets=TRUE) + ggtitle(paste("annual seasonality of",variable,',',grp))+
+      ylab("") + xlab('Years') 
+ grid.arrange(p,p1,ncol=1,nrow=2)
+  
+}
+```
+
+
+
+Function to create exploratory times series plots 
+```{r }
+ts_plot <- function(tsobject,grp, conames, lg=NULL){
+p1 <- autoplot(tsobject$a, ts.colour ='blue', xlab = 'Dates',main = paste("Line plot of",conames[3],sep=', ',grp))
+p2 <- autoplot(tsobject$b, ts.colour ='green', xlab = 'Dates',main = paste("Line plot of",conames[4],sep=', ',grp))
+p3 <- ggAcf(tsobject$a,lag=lg,main= paste("ACF plot for",conames[3],',',grp))
+p4 <- ggPacf(tsobject$a,lag=lg,main= paste("PACF plot for",conames[3],',',grp))
+p5 <- ggAcf(tsobject$b,lag=lg,main= paste("ACF plot for",conames[4],',',grp))
+p6 <- ggPacf(tsobject$b,lag=lg,main= paste("PACF plot for",conames[4],',',grp))
+#p7 <- ggseasonplot(ts_S03$a, col = 'blue', main= )
+grid.arrange(p1,p2,arrangeGrob(p3,p4,nrow = 1),arrangeGrob(p5,p6,nrow = 1),nrow=2)
+}
+ts_decompose <- function(tsobject,grp, conames){
+  p1 = autoplot(decompose(tsobject$a), main = paste("Decomposition of times series for ",conames[3],sep=', ',grp) )
+  p2= autoplot(decompose(tsobject$b), main = paste("Decomposition of times series for ",conames[4],sep=', ',grp) )
+  
+  grid.arrange(p1,p2,nrow=1)
+}
+```
+
+### Analysis for S03
+
+Time-series data sets were created for both variables in S03, Four time-series dataset were created for each of the variables representing weekly and annual frequencies with weekends included and also without weekends. Values for the weekends and other holdays were added through imputation in datasets where weekends and holidays were included. Since the datsets represnt longer periods of times (multiple years) two  multi-seasonal time serires (msts) were also created to consider weekly and annual seasonality as this is common to have both weekly and annual seasonality for daily data in a longer span of time.
+
+Time-series datasets with included weekends:
+```{r}
+# ts for annual frequencies
+ts_S03_annual <- ts_daily(ts_df(S03_df_train),365)
+# ts for weekly frequencies
+ts_S03_weekly <- ts_daily(ts_df(S03_df_train),7)
+# ts for multi-seasonality
+ts_S03_multi <- ts_multi(ts_df(S03_df_train), 7, 365)
+```
+Time-series datasets without considering weekends:
+```{r}
+# ts for annual frequencies
+ts_S03_nowkend_annual <- ts_daily(S03_df_train,240)
+# ts for weekly frequencies
+ts_S03_nowkend_weekly <- ts_daily(S03_df_train,5)
+# ts for yearly frequencies
+ts_S03_multi_nowkend <- ts_multi(S03_df_train, 5, 240)
+ 
+```
+
+train and test dataset for forcasting:
+```{r}
+ts_train <- window(ts_S03_nowkend_annual$a, start = c(1, 1),  end =  c(7,41))
+ts_test <- window(ts_S03_nowkend_annual$a, start = c(7,42), end=c(7,182))
+ts_train_b <- window(ts_S03_nowkend_annual$b, start = c(1, 1),  end =  c(7,41))
+ts_test_b <- window(ts_S03_nowkend_annual$b, start = c(7,42), end=c(7,182))
+```
+
+Model's performance visualization
+```{r}
+plot_models_results <- function(main_ts, main_model, train_model, test_ts, var, grp, model_name){
+  autoplot(main_ts)+
+  autolayer(main_model, series="required forecast")+
+  autolayer(train_model, series="known data forecast")+
+  autolayer(test_ts, series = 'actual')+
+  ggtitle(paste("performance of",model_name,"for",var,',',grp))
+}
+```
+
+## Visual exploration:
+
+####Plots of Group S03 with annual frequency (weekends/holydays included)
+```{r fig.height= 6 , fig.width=15}
+ts_plot(ts_S03_annual,"Group S03",names(S03_df_train))
+```
+
+####Plots of Group S03 with weekly frequency (weekends/holydays included)
+```{r fig.height= 6 , fig.width=15}
+ts_plot(ts_S03_weekly,"Group S03",names(S03_df_train))
+```
+
+
+####Plots of Group S03 with annual frequency (without weekends/holydays)
+```{r fig.height= 6 , fig.width=15}
+ts_plot(ts_S03_nowkend_annual,"Group S03",names(S03_df_train))
+```
+
+####Plots of Group S03 with weekly frequency (without weekends/holydays)
+```{r fig.height= 6 , fig.width=15}
+ts_plot(ts_S03_nowkend_weekly,"Group S03",names(S03_df_train))
+```
+
+
+
+Since Plotting data is arguably the most critical step in the exploratory analysis phase, Several plots were made for the variables in group S03. Plots for the same aspects of all the time-series datasets for both variables are almost similar as well as there are no considerable differences in the behaviours of data wether weekends/holidays were included or not.Clearly both variables (Var05 and Var07) show existence of both positive and negative trends over the time periods that are almost identical. The ACF and PACF plots suggest a mix of AR and MA as both the ACF and PACF trail off and also there is hard cut-off after a lag , therefore ARIMA models seem to be appropriate for both of the variables. From the ACF plot it is not clear if the data has seasonality as there are no visual pattern of periodic spike or downward tendency of data. 
+
+So at first "tbats" model in "forecast" packgae was used to see if seasonality exists but futher exploration into "tabts" model suggested it is not in all cases of data and frequencies, therefore STL (Seasonal and Trend decomposition using Loess) decompostion of all the time-series datasets were done to check seasonality.
+
+The seasonality test were done for all TS datasets and all of them showed existance of seasonality:
+```{r}
+ts_datasets <- c("ts with weekly frequency with weekends/holydays",
+                 "ts with annual frequency with weekends/holydays",
+                 "multi-season ts with weekends/holydays",
+                 "ts with weekly frequency without weekends/holydays",
+                 "ts with annual frequency without weekends/holydays",
+                 "multi-season ts with weekends/holydays")
+seasonality <- c(check_seasonality(ts_S03_weekly$a),
+                 check_seasonality(ts_S03_annual$a),
+                 check_seasonality(ts_S03_multi$a),
+                 check_seasonality(ts_S03_nowkend_weekly$a),
+                 check_seasonality(ts_S03_nowkend_annual$a),
+                 check_seasonality(ts_S03_multi_nowkend$a))
+Var05_seasonality <- data.frame(ts_datasets,seasonality)
+```
+
+
+Weekly and Annul Seasonality (Varo5, with weekends)
+```{r fig.width=10, fig.height=8}
+plot_seasonality(ts_S03_weekly$a,ts_S03_annual$a,"Var05","S03")
+```
+
+
+
+Weekly and Annul Seasonality (Var07, with weekends)
+```{r fig.width=10, fig.height=8}
+plot_seasonality(ts_S03_weekly$b,ts_S03_annual$b,"Var07","S03")
+```
+
+Weekly and Annul Seasonality (Var05, No weekends)
+```{r fig.width=10, fig.height=8}
+plot_seasonality(ts_S03_nowkend_weekly$a,ts_S03_nowkend_annual$a,"Var05","S03")
+```
+
+Weekly and Annul Seasonality (Var07, No weekends)
+```{r fig.width=10, fig.height=8}
+plot_seasonality(ts_S03_nowkend_weekly$b,ts_S03_nowkend_annual$b,"Var07","S03")
+```
+
+`
+
+
+
+
+
+
+
+
+All the decompositions show the presence of both weekly and annual seasonality. So all the visual analysis suggest both of variables of group S03 have autocorrelation and seasonality. So ARIMA model could be a good choice for both of them. While it is possible to tentatively identify the numbers of AR and/or MA terms that are needed for ARIMA model by looking at the autocorrelation function (ACF) and partial autocorrelation (PACF) plots of the differenced series, since auto.arima (from forecast package) model automatically detect those term and usually works better than any manual attempts, auto.arima would be used for the forecasting. ETS model is another option as it can also addresses seasonality.
+
+While both ARIMA and ETS both are good options, both of them are good for relatively short seasonality (e.g., monthly or quarterly) and do not work well for seasonal periods that are much longer, which is the case in this context. Therefore, Fourier series model would also be looked at.  Since STL can handle any type of seasonality, and the seasonal component is allowed to change over time, and it can be robust to outliers, STL model may be the perfect one for these datasets. 
+
+
+since the data with weekends/holydays does not make any huge difference in the trend and seasonality and almost similar to the timeseries created by data without considering those days, only timeseries datasets with no weekends would be used for the models.
+
+
+### Model building
+
+auto.arima model:
+```{r}
+auto_arima_fit <- auto.arima(ts_S03_nowkend_annual$a)
+summary(auto_arima_fit)
+```
+
+```{r}
+checkresiduals(auto_arima_fit)
+```
+The model did not do well as it shows a very big AIC, BIC and other unacceptable parameters. The p-value of Ljung-Box test is way less than .05 suggesting than residuals are not independent . 
+
+performance:
+```{r}
+auto_arima_fc <- forecast(auto_arima_fit, h=140)
+train_auto_arima_fit <- auto.arima(ts_train)
+train_auto_arima_fc <- forecast(train_auto_arima_fit, h=140)
+ 
+plot_models_results(ts_S03_nowkend_annual$a,auto_arima_fc,train_auto_arima_fc,ts_test,"Var05","S03","auto.arima")
+```
+
+
+So a second auto_arima model was tested  with lambda defined by BoxCox transformation
+```{r}
+auto_arima_fit1 <- auto.arima(ts_S03_nowkend_annual$a,lambda=BoxCox.lambda(ts_S03_nowkend_annual$a))
+summary(auto_arima_fit1)
+```
+
+
+
+```{r}
+checkresiduals(auto_arima_fit1)
+```
+BoxCox transformation really improved the model a lot, which  expected as tdataset is non-stationary, meaning that the mean and the variance of the observations change over time. The p-value of Ljung-Box test is now greater then .05 suggesting than residuals are now independent, whicj is desired for a model. The AIC ad BIC values are also much improved.
+
+performance of auto_arima_fit1:
+```{r}
+auto_arima_fc1 <- forecast(auto_arima_fit1, h=140)
+train_auto_arima_fit1 <- auto.arima(ts_train,lambda=BoxCox.lambda(ts_train))
+train_auto_arima_fc1 <- forecast(train_auto_arima_fit1, h=140)
+ 
+plot_models_results(ts_S03_nowkend_annual$a,auto_arima_fc1,train_auto_arima_fc1,ts_test,"Var05","S03","auto.arima with BoxCox")
+```
+
+
+
+
+#### ets:
+```{r}
+ets_fit <- ets(ts_S03_nowkend_annual$a)
+summary(ets_fit)
+```
+ETS automatically selected model "MAN" which was wrong. It also threw an error "I can't handle data with frequency greater than 24. Seasonality will be ignored". Since it could not handle seasonality it performed really bad. AIC and BIC are also very high. 
+
+```{r}
+checkresiduals(ets_fit)
+autoplot(ets_fit)
+```
+
+performance of ets_fit:
+```{r}
+ets_fc <- forecast(ets_fit, h=140)
+train_ets_fit <- ets(ts_train)
+train_ets_fc <- forecast(train_ets_fit, h=140)
+ 
+plot_models_results(ts_S03_nowkend_annual$a,ets_fc,train_ets_fc,ts_test,"Var05","S03","ets")
+```
+
+
+
+
+#### msts:
+```{r}
+fit_var05_msts <- tbats(ts_S03_multi$a,lambda=BoxCox.lambda(ts_S03_nowkend_annual$a))
+fc_var05_msts <- forecast(fit_var05_msts,h=140)
+plot(fc_var05_msts)
+```
+
+
+```{r}
+summary(fit_var05_msts)
+```
+
+Since "stlf" can handle seasonality really well, another model was tested with stlf with "arima" as the underlying method. BoxCox transformation was also included.
+```{r}
+stlf_arima_fit <- stlf(ts_S03_nowkend_annual$a, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S03_nowkend_annual$a), h=140)
+     
+```
+
+
+```{r}
+summary(stlf_arima_fit)
+```
+STL with ARIMA method alomg with BoxCox transformation did really well in comarison with other models. 
+
+```{r}
+checkresiduals(stlf_arima_fit)
+```
+
+performance of stlf_arima_fit
+```{r}
+train_stlf_arima_fc <- stlf(ts_train, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_train), h=140)
+ 
+plot_models_results(ts_S03_nowkend_annual$a,stlf_arima_fit,train_stlf_arima_fc,ts_test,"Var05","S03","stlf_arima with BoxCox")
+```
+
+stlf_ets_fit
+```{r}
+stlf_ets_fit <- stlf(ts_S03_nowkend_annual$a, s.window = "period", method="ets",lambda=BoxCox.lambda(ts_S03_nowkend_annual$a), h=140)
+     
+```
+
+
+```{r}
+summary(stlf_ets_fit)
+```
+STL with ETS method alomg with BoxCox transformation did really well in comarison with other models. 
+
+```{r}
+checkresiduals(stlf_ets_fit)
+```
+
+performance of stlf_ets_fit
+```{r}
+train_stlf_ets_fc <- stlf(ts_train, s.window = "period", method="ets",lambda=BoxCox.lambda(ts_train), h=140)
+ 
+plot_models_results(ts_S03_nowkend_annual$a,stlf_ets_fit,train_stlf_ets_fc,ts_test,"Var05","S03","stlf_ets with BoxCox")
+```
+
+
+```{r}
+stlf_randomwalk_fit <- stlf(ts_S03_nowkend_annual$a, s.window = "period", method='rwdrift',lambda=BoxCox.lambda(ts_S03_nowkend_annual$a),  robust = TRUE)
+#plot(var05_stlf_randomwalk, main="Forecasts from STL and Random walk ")
+  
+summary(stlf_randomwalk_fit) 
+```
+
+
+
+testing with var07 variable:
+```{r}
+var07_stlf_arima <- stlf(ts_S03_nowkend_annual$b, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S03_nowkend_annual$a), h=140 )
+     
+```
+
+
+Model's performance comparison
+```{r}
+row_names <- c("auto_arima","auto_arima_BoxCox","ETS","stlf_arima_BoxCox")
+df_accuracy <-  rbind(as.data.frame(accuracy(auto_arima_fc)),
+                      as.data.frame(accuracy(auto_arima_fc1)),
+                      as.data.frame(accuracy(ets_fc)),
+                      as.data.frame(accuracy(stlf_arima_fit)))
+     
+row.names(df_accuracy) <- row_names
+auto_arima <- c(auto_arima_fc$model$aic,auto_arima_fc$model$bic)
+auto_arima_BoxCox <- c(auto_arima_fc$model$aic,auto_arima_fc$model$bic)
+ETS <- c(ets_fc$model$aic,ets_fc$model$bic)
+stlf_arima_BoxCox <- c(stlf_arima_fit$model$aic,stlf_arima_fit$model$bic)
+df_AIC_BIC <- data.frame(auto_arima,auto_arima_BoxCox,ETS,stlf_arima_BoxCox)
+row.names(df_AIC_BIC) <- c("AIC","BIC")
+View(df_AIC_BIC)
+```
+
+Predit value:
+Since stlf_arima_BoxCox is proved to be the best, this model will be used to forecast the values. Similar model will be used for both variables as they behave the same:
+```{r}
+predict_var03 <- round(as.numeric(stlf_arima_fit$mean),2)
+predict_var07 <- round(as.numeric(var07_stlf_arima$mean),2)
+df_predict <- data.frame(predict_var03,predict_var07)
+write.csv(df_predict,"predict_S03.csv")
+```
+```{r}
+ts_S01_nowkend_annual <- ts_daily(S01_df_train,240)
+ts_S02_nowkend_annual <- ts_daily(S02_df_train,240)
+ts_S04_nowkend_annual <- ts_daily(S04_df_train,240)
+ts_S05_nowkend_annual <- ts_daily(S05_df_train,240)
+ts_S06_nowkend_annual <- ts_daily(S06_df_train,240)
+```
+
+auto.arima model For Remaining Series:
+S01
+```{r}
+auto_arima_fit_S01 <- auto.arima(ts_S01_nowkend_annual$a,lambda=BoxCox.lambda(ts_S01_nowkend_annual$a))
+summary(auto_arima_fit_S01)
+```
+```{r}
+checkresiduals(auto_arima_fit_S01)
+```
+```{r}
+auto_arima_fc1 <- forecast(auto_arima_fit_S01, h=140)
+train_auto_arima_fit1 <- auto.arima(ts_train,lambda=BoxCox.lambda(ts_train))
+train_auto_arima_fc1 <- forecast(train_auto_arima_fit1, h=140)
+ 
+plot_models_results(ts_S01_nowkend_annual$a,auto_arima_fc1,train_auto_arima_fc1,ts_test,"Var02","S01","auto.arima with BoxCox")
+```
+S02
+```{r}
+auto_arima_fit_S02 <- auto.arima(ts_S02_nowkend_annual$a,lambda=BoxCox.lambda(ts_S02_nowkend_annual$a))
+summary(auto_arima_fit_S02)
+```
+```{r}
+checkresiduals(auto_arima_fit_S02)
+```
+```{r}
+auto_arima_fc1 <- forecast(auto_arima_fit_S02, h=140)
+train_auto_arima_fit1 <- auto.arima(ts_train,lambda=BoxCox.lambda(ts_train))
+train_auto_arima_fc1 <- forecast(train_auto_arima_fit1, h=140)
+ 
+plot_models_results(ts_S02_nowkend_annual$a,auto_arima_fc1,train_auto_arima_fc1,ts_test,"Var03","S02","auto.arima with BoxCox")
+```
+S04
+```{r}
+auto_arima_fit_S04 <- auto.arima(ts_S04_nowkend_annual$a,lambda=BoxCox.lambda(ts_S04_nowkend_annual$a))
+summary(auto_arima_fit_S04)
+```
+```{r}
+checkresiduals(auto_arima_fit_S04)
+```
+```{r}
+auto_arima_fc1 <- forecast(auto_arima_fit_S04, h=140)
+train_auto_arima_fit1 <- auto.arima(ts_train,lambda=BoxCox.lambda(ts_train))
+train_auto_arima_fc1 <- forecast(train_auto_arima_fit1, h=140)
+ 
+plot_models_results(ts_S04_nowkend_annual$a,auto_arima_fc1,train_auto_arima_fc1,ts_test,"Var03","S04","auto.arima with BoxCox")
+```
+S05
+```{r}
+auto_arima_fit_S05 <- auto.arima(ts_S05_nowkend_annual$a,lambda=BoxCox.lambda(ts_S05_nowkend_annual$a))
+summary(auto_arima_fit_S05)
+```
+```{r}
+checkresiduals(auto_arima_fit_S05)
+```
+```{r}
+auto_arima_fc1 <- forecast(auto_arima_fit_S05, h=140)
+train_auto_arima_fit1 <- auto.arima(ts_train,lambda=BoxCox.lambda(ts_train))
+train_auto_arima_fc1 <- forecast(train_auto_arima_fit1, h=140)
+ 
+plot_models_results(ts_S05_nowkend_annual$a,auto_arima_fc1,train_auto_arima_fc1,ts_test,"Var03","S05","auto.arima with BoxCox")
+```
+S06
+```{r}
+auto_arima_fit_S06 <- auto.arima(ts_S06_nowkend_annual$a,lambda=BoxCox.lambda(ts_S06_nowkend_annual$a))
+summary(auto_arima_fit_S06)
+```
+```{r}
+checkresiduals(auto_arima_fit_S06)
+```
+```{r}
+auto_arima_fc1 <- forecast(auto_arima_fit_S06, h=140)
+train_auto_arima_fit1 <- auto.arima(ts_train,lambda=BoxCox.lambda(ts_train))
+train_auto_arima_fc1 <- forecast(train_auto_arima_fit1, h=140)
+ 
+plot_models_results(ts_S06_nowkend_annual$a,auto_arima_fc1,train_auto_arima_fc1,ts_test,"Var07","S06","auto.arima with BoxCox")
+```
+Predict values for rest of series
+S01
+```{r}
+var01_stlf_arima <- stlf(ts_S01_nowkend_annual$a, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S01_nowkend_annual$a), h=140 )
+var02_stlf_arima <- stlf(ts_S01_nowkend_annual$b, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S01_nowkend_annual$a), h=140 )
+predict_var01 <- round(as.numeric(var01_stlf_arima$mean),2)
+predict_var02 <- round(as.numeric(var02_stlf_arima$mean),2)
+df_predict <- data.frame(predict_var01,predict_var02)
+write.csv(df_predict,"predict_S01.csv")
+```
+S02
+```{r}
+var02_stlf_arima <- stlf(ts_S02_nowkend_annual$a, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S02_nowkend_annual$a), h=140 )
+var03_stlf_arima <- stlf(ts_S02_nowkend_annual$b, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S02_nowkend_annual$a), h=140 )
+predict_var02 <- round(as.numeric(var02_stlf_arima$mean),2)
+predict_var03 <- round(as.numeric(var03_stlf_arima$mean),2)
+df_predict <- data.frame(predict_var02,predict_var03)
+write.csv(df_predict,"predict_S02.csv")
+```
+S04
+```{r}
+var01_stlf_arima <- stlf(ts_S04_nowkend_annual$a, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S04_nowkend_annual$a), h=140 )
+var02_stlf_arima <- stlf(ts_S04_nowkend_annual$b, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S04_nowkend_annual$a), h=140 )
+predict_var01 <- round(as.numeric(var01_stlf_arima$mean),2)
+predict_var02 <- round(as.numeric(var02_stlf_arima$mean),2)
+df_predict <- data.frame(predict_var01,predict_var02)
+write.csv(df_predict,"predict_S04.csv")
+```
+S05
+```{r}
+var02_stlf_arima <- stlf(ts_S05_nowkend_annual$a, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S05_nowkend_annual$a), h=140 )
+var03_stlf_arima <- stlf(ts_S05_nowkend_annual$b, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S05_nowkend_annual$a), h=140 )
+predict_var02 <- round(as.numeric(var02_stlf_arima$mean),2)
+predict_var03 <- round(as.numeric(var03_stlf_arima$mean),2)
+df_predict <- data.frame(predict_var02,predict_var03)
+write.csv(df_predict,"predict_S05.csv")
+```
+s06
+```{r}
+var05_stlf_arima <- stlf(ts_S06_nowkend_annual$a, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S06_nowkend_annual$a), h=140 )
+var07_stlf_arima <- stlf(ts_S06_nowkend_annual$b, s.window = "period", method="arima",lambda=BoxCox.lambda(ts_S06_nowkend_annual$a), h=140 )
+predict_var05 <- round(as.numeric(var05_stlf_arima$mean),2)
+predict_var07 <- round(as.numeric(var07_stlf_arima$mean),2)
+df_predict <- data.frame(predict_var05,predict_var07)
+write.csv(df_predict,"predict_S06.csv")
+```
