@@ -1,0 +1,229 @@
+---
+title: "HW8-624"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 8.1
+```{r}
+library(caret) 
+library(mlbench)
+library(gbm)
+
+set.seed(200)
+simulated = mlbench.friedman1(200,sd=1)
+simulated = cbind(simulated$x, simulated$y)
+simulated = as.data.frame(simulated)
+colnames(simulated)[ncol(simulated)] = "y" 
+
+library(randomForest)
+
+model1 = randomForest( y ~ ., data=simulated, importance=TRUE, ntree=1000 )
+rfImp1 = varImp(model1, scale=FALSE)
+rfImp1 = rfImp1[ order(-rfImp1), , drop=FALSE ]
+print(rfImp1)
+
+```
+the model does not use significently use V6 to V10 since their importance sore are very low and close to 0
+
+```{r}
+simulated$duplicate1 = simulated$V1 + rnorm(200) * 0.1
+cor(simulated$duplicate1,simulated$V1)
+
+model2 = randomForest( y ~ ., data=simulated, importance=TRUE, ntree=1000 )
+rfImp2 = varImp(model2, scale=FALSE)
+rfImp2 = rfImp2[ order(-rfImp2), , drop=FALSE ] 
+print(rfImp2)
+```
+when add one highly correlated variable, the importance score of V1 droped
+```{r}
+simulated$duplicate2 = simulated$V1 + rnorm(200) * 0.1
+cor(simulated$duplicate2,simulated$V1)
+
+model3 = randomForest( y ~ ., data=simulated, importance=TRUE, ntree=1000 )
+rfImp3 = varImp(model3, scale=FALSE)
+rfImp3 = rfImp3[ order(-rfImp3), , drop=FALSE ] 
+print(rfImp3)
+
+```
+After adding another correlated variable the importance score of V1 droped more
+
+
+```{r}
+library(party)
+
+simulated$duplicate1 = NULL
+simulated$duplicate2 = NULL
+
+model1 = cforest( y ~ ., data=simulated )
+cfImp1 = as.data.frame(varimp(model1),conditional=use_conditional_true)
+cfImp1 = cfImp1[ order(-cfImp1), , drop=FALSE ] 
+
+print(cfImp1)
+
+model2 = cforest( y ~ ., data=simulated )
+cfImp2 = as.data.frame(varimp(model2),conditional=use_conditional_true)
+cfImp2 = cfImp2[ order(-cfImp2), , drop=FALSE ]  
+print(cfImp2)
+
+simulated$duplicate2 = simulated$V1 + rnorm(200) * 0.1
+
+model3 = cforest( y ~ ., data=simulated )
+cfImp3 = as.data.frame(varimp(model3),conditional=use_conditional_true)
+cfImp3 = cfImp3[ order(-cfImp3), , drop=FALSE ] 
+print(cfImp3)
+
+```
+The same pattern exist that when adding correlated variable the importance socre of V1 declined 
+
+```{r}
+simulated$duplicate1 = NULL
+simulated$duplicate2 = NULL
+      
+model1 = gbm( y ~ ., data=simulated, distribution="gaussian", n.trees=1000 ) 
+print(sprintf("gbm (no correlated predictor)"))
+print(summary(model1,plotit=F)) 
+
+
+simulated$duplicate1 = simulated$V1 + rnorm(200) * 0.1
+
+model2 = gbm( y ~ ., data=simulated, distribution="gaussian", n.trees=1000 ) 
+print(sprintf("gbm (one correlated predictor)"))
+print(summary(model2,plotit=F))
+
+simulated$duplicate2 = simulated$V1 + rnorm(200) * 0.1
+
+model3 = gbm( y ~ ., data=simulated, distribution="gaussian", n.trees=1000 ) 
+print(sprintf("gbm (two correlated predictor)"))
+print(summary(model3,plotit=F))
+
+```
+for boosted trees, the pattern still occur but the impact of adding correlated variables seems to be smaller
+
+## 8.2
+
+## 8.3
+
+a becasue a lower bagging fraction and learing rate will force the tree to have more iterations and as a result it requires more tree to be added
+that's by the importance score is spreaded accross more predictors 
+b I think the left side model will have more predictive power to other samples since it's more generalized and the model is less overfitting to the data 
+c adding iterations depth will decrease the slop of importance score for both model
+
+## 8.12
+
+```{r}
+library(caret)
+library(AppliedPredictiveModeling)
+library(rpart)
+
+set.seed(0)
+
+data(ChemicalManufacturingProcess)
+
+processPredictors = ChemicalManufacturingProcess[,2:58]
+yield = ChemicalManufacturingProcess[,1]
+
+n_samples = dim(processPredictors)[1]
+n_features = dim(processPredictors)[2]
+
+
+replacements = sapply( processPredictors, median, na.rm=TRUE )
+for( ci in 1:n_features ){
+  bad_inds = is.na( processPredictors[,ci] )
+  processPredictors[bad_inds,ci] = replacements[ci]
+}
+
+
+zero_cols = nearZeroVar( processPredictors )
+
+processPredictors = processPredictors[,-zero_cols] # drop these zero variance columns 
+
+
+training = createDataPartition( yield, p=0.8 )
+
+processPredictors_training = processPredictors[training$Resample1,]
+yield_training = yield[training$Resample1]
+
+processPredictors_testing = processPredictors[-training$Resample1,]
+yield_testing = yield[-training$Resample1]
+
+
+preProc_Arguments = c("center","scale")
+```
+```{r}
+# rpart model:
+ 
+set.seed(0)
+rpartModel = train(x=processPredictors_training, y=yield_training, method="rpart", preProc=preProc_Arguments, tuneLength=10)
+
+# predict on training/testing sets
+rpartPred = predict(rpartModel, newdata=processPredictors_training)
+rpartPR = postResample(pred=rpartPred, obs=yield_training)
+rmses_training = c(rpartPR[1])
+r2s_training = c(rpartPR[2])
+methods = c("RPART")
+
+rpartPred = predict(rpartModel, newdata=processPredictors_testing)
+rpartPR = postResample(pred=rpartPred, obs=yield_testing)
+rmses_testing = c(rpartPR[1])
+r2s_testing = c(rpartPR[2])
+rmses_testing
+r2s_testing
+```
+```{r}
+# random forest model:
+
+set.seed(0)
+rfModel = train(x=processPredictors_training, y=yield_training, method="rf", preProc=preProc_Arguments, tuneLength=10)
+
+rfPred = predict(rfModel, newdata=processPredictors_training)
+rfPR = postResample(pred=rfPred, obs=yield_training)
+rmses_training = c(rmses_training,rfPR[1])
+r2s_training = c(r2s_training,rfPR[2])
+methods = c(methods,"RF")
+
+rfPred = predict(rfModel, newdata=processPredictors_testing)
+rfPR = postResample(pred=rfPred, obs=yield_testing)
+rmses_testing = c(rmses_testing,rfPR[1])
+r2s_testing = c(r2s_testing,rfPR[2])
+rmses_testing
+r2s_testing
+```
+```{r}
+# Cubist: 
+#
+set.seed(0)
+cubistModel = train(x=processPredictors_training, y=yield_training, method="cubist", preProc=preProc_Arguments, tuneLength=20)
+
+cubistPred = predict(cubistModel, newdata=processPredictors_training)
+cubistPR = postResample(pred=cubistPred, obs=yield_training) 
+rmses_training = c(rmses_training,cubistPR[1])
+r2s_training = c(r2s_training,cubistPR[2])
+methods = c(methods,"CUBIST")
+
+cubistPred = predict(cubistModel, newdata=processPredictors_testing)
+cubistPR = postResample(pred=cubistPred, obs=yield_testing)
+rmses_testing = c(rmses_testing,cubistPR[1])
+r2s_testing = c(r2s_testing,cubistPR[2])
+rmses_testing
+r2s_testing
+```
+Cubist model seems to have the best performace 
+
+```{r}
+varImp(cubistModel)
+```
+ManufacturingProcess32 is the most important. both biological and process variables has significent importance to the model, neither of them  dominates the list. the importance of biological and process variables in nonlinear model seems to more even
+
+
+```{r}
+trainData = processPredictors_training
+trainData$y = yield_training
+rPartModel = rpart( y ~ ., data=trainData, method="anova", control=rpart.control(cp = 0.07533616) )
+plot(rPartModel); text(rPartModel)
+```
+seems like Manufacting process has more impact to yield and small Manufacting process can lead to high yield 
+

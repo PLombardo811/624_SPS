@@ -1,0 +1,74 @@
+---
+title: "HW 7"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 7.2
+```{r}
+library(mlbench)
+library(Seurat)
+library(ggplot2)
+set.seed(200)
+trainingData<- mlbench.friedman1(200, sd=1)
+trainingData$x <-data.frame(trainingData$x)
+plot(trainingData$x, trainingData$y)
+```
+```{r}
+testData <- mlbench.friedman1(5000, sd=1)
+testData$x <- data.frame(testData$x)
+```
+```{r}
+library(caret)
+knnModel <-train(x = trainingData$x, y= trainingData$y, method = "knn", preProc = c("center", "scale"), tuneLength = 10)
+```
+```{r}
+knnModel
+knnPred <- predict(knnModel, newdata = testData$x)
+postResample(pred = knnPred, obs = testData$y)
+```
+```{r}
+library(AppliedPredictiveModeling)
+data("ChemicalManufacturingProcess")
+summary(ChemicalManufacturingProcess)
+processPredictors = ChemicalManufacturingProcess[,2:58]
+yield = ChemicalManufacturingProcess[,1]
+
+n_samples = dim(processPredictors)[1]
+n_features = dim(processPredictors)[2]
+
+# replace NA
+
+replacements = sapply( processPredictors, median, na.rm=TRUE )
+for( ci in 1:n_features ){
+  bad_inds = is.na( processPredictors[,ci] )
+  processPredictors[bad_inds,ci] = replacements[ci]
+}
+
+training = createDataPartition( yield, p=0.8 )
+processPredictors_training = processPredictors[training$Resample1,]
+yield_training = yield[training$Resample1]
+processPredictors_testing = processPredictors[-training$Resample1,]
+yield_testing = yield[-training$Resample1]
+
+```
+```{r}
+set.seed(0)
+knnModel <- train(x=processPredictors_training, y=yield_training, method="knn", preProc=c("center", "scale"), tuneLength=10)
+knnModel
+knnPred = predict(knnModel, newdata=processPredictors_testing)
+knnPR = postResample(pred=knnPred, obs=yield_testing)
+```
+
+```{r}
+marsGrid <- expand.grid(.degree=1:2, .nprune=2:38)
+set.seed(0)
+marsModel <- train(x=processPredictors_training, y=yield_training, method="earth", preProc=c("center", "scale"), tuneGrid=marsGrid)
+marsModel      
+marsPred = predict(marsModel, newdata=processPredictors_testing)
+marsPR = postResample(pred=marsPred, obs=yield_testing)
+
+```
