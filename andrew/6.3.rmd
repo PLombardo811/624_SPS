@@ -1,0 +1,147 @@
+---
+title: "HW6.3"
+author: "Alejandro Osborne"
+date: "April 23, 2019"
+output:
+  word_document: default
+  pdf_document: default
+---
+```{r}
+library(caret)
+library(AppliedPredictiveModeling)
+library(elasticnet)
+library(pracma)
+```
+
+
+# Part (a): Data Loading
+# 
+```{r}
+set.seed(0)
+data(ChemicalManufacturingProcess)
+
+processPredictors = ChemicalManufacturingProcess[,2:58]
+yield = ChemicalManufacturingProcess[,1]
+
+n_sample = dim(processPredictors)[1]
+n_feature = dim(processPredictors)[2]
+```
+
+# Part (b): Fill in missing values where we have NAs with the median over the non-NA values: 
+#
+```{r}
+replacements = sapply( processPredictors, median, na.rm=TRUE )
+for( ci in 1:n_feature ){
+  bad_inds = is.na( processPredictors[,ci] )
+  processPredictors[bad_inds,ci] = replacements[ci]
+}
+
+# Look for non-variance features:
+# 
+zero_cols = nearZeroVar( processPredictors )
+print( sprintf("Found %d zero variance columns from %d",length(zero_cols), dim(processPredictors)[2] ) )
+processPredictors = processPredictors[,-zero_cols] # drop these zero variance columns 
+```
+
+# Part (c): Split this data into training and testing sets:
+#
+```{r}
+training = createDataPartition( yield, p=0.8 )
+
+pPrdctrs_training = processPredictors[training$Resample1,]
+yld_training = yield[training$Resample1]
+
+pPrdctrs_testing = processPredictors[-training$Resample1,]
+yld_testing = yield[-training$Resample1]
+```
+
+
+# Build some linear models and predict the performance on the testing data set: 
+#
+```{r}
+set.seed(0)
+pls_model = train( pPrdctrs_training, yld_training, method="pls",
+                   # the default tuning grid evaluates component 1
+                   tuneLength=40, 
+                   preProcess=c("center","scale"), trControl=trainControl(method="repeatedcv",repeats=5) )
+
+y_hat = predict( pls_model, newdata=pPrdctrs_testing )
+r2_pls = cor(y_hat,yld_testing,method="pearson")^2
+rmse_pls = sqrt( mean( (y_hat-yld_testing)^2 ) )
+print( sprintf( "%-10s: Testing R^2= %10.6f; RMSE= %10.6f", "PLS", r2_pls, rmse_pls ) )
+```
+
+# Will try Enet, PLS and some other models:
+# 
+```{r}
+enetGrid = expand.grid(.lambda=seq(0,1,length=20), .fraction=seq(0.05, 1.0, length=20))
+set.seed(0)
+enet_model = train( pPrdctrs_training, yld_training, method="enet",
+                    # fit the model over many penalty values
+                    tuneGrid = enetGrid,
+                    preProcess=c("center","scale"), trControl=trainControl(method="repeatedcv",repeats=5) )
+y_hat = predict( enet_model, newdata=pPrdctrs_testing )
+r2_enet = cor(y_hat,yld_testing,method="pearson")^2
+rmse_enet = sqrt( mean( (y_hat-yld_testing)^2 ) )
+print( sprintf( "%-10s: Testing R^2= %10.6f; RMSE= %10.6f", "ENET", r2_enet, rmse_enet ) )
+```
+
+```{r}
+set.seed(0)
+lm_model = train( pPrdctrs_training, yld_training, method="lm", preProcess=c("center","scale"), trControl=trainControl(method="repeatedcv",repeats=5) )
+y_hat = predict( lm_model, newdata=pPrdctrs_testing )
+r2_lm = cor(y_hat,yld_testing,method="pearson")^2
+rmse_lm = sqrt( mean( (y_hat-yld_testing)^2 ) )
+print( sprintf( "%-10s: Testing R^2= %10.6f; RMSE= %10.6f", "LM", r2_lm, rmse_lm ) )
+```
+
+# RLM does not allow for single predictor covar-matrix so we're going to try with PCA:
+# 
+```{r}
+set.seed(0)
+rlm_model = train( pPrdctrs_training, yld_training, method="rlm", preProcess=c("pca"), trControl=trainControl(method="repeatedcv",repeats=5) )
+y_hat = predict( rlm_model, newdata=pPrdctrs_testing )
+r2_rlm = cor(y_hat,yld_testing,method="pearson")^2
+rmse_rlm = sqrt( mean( (y_hat-yld_testing)^2 ) )
+print( sprintf( "%-10s: Testing R^2= %10.6f; RMSE= %10.6f", "RLM", r2_rlm, rmse_rlm ) )
+```
+# Compare the given models using resamples
+#
+```{r}
+resamp = resamples( list(pls=pls_model,enet=enet_model,lm=lm_model,rlm=rlm_model) )
+print( summary(resamp) )
+
+dotplot( resamp, metric="RMSE" )
+
+print( summary(diff(resamp)) )
+```
+# Part (e): evaluating coefficients selected by the optimal model which I believe to be Elastic Net:
+#
+```{r}
+enet_base_model = enet( x=as.matrix(pPrdctrs_training), y=yld_training, lambda=0.5263158, normalize=TRUE )
+enet_coefficients = predict( enet_base_model, newx=as.matrix(pPrdctrs_testing), s=0.35, mode="fraction", type="coefficients" )
+
+non_zero = enet_coefficients$coefficients != 0
+enet_coefficients$coefficients[ non_zero ]
+```
+# Part (f): The relationships between the top predictors and the response:
+#
+# To do this we will pick a predictor and plot the responce as a function of this value
+#
+```{r}
+p_range = range( processPredictors$ManufacturingProcess32 )
+variation = seq( from=p_range[1], to=p_range[2], length.out=100 )
+mean_predictor_values = apply( processPredictors, 2, mean )
+
+# dataframe with variation in one dimension (ManufacturingProcess32 was choosen because of it's correlation)
+newdata = repmat( as.double(mean_predictor_values), length(variation), 1 )
+newdata = data.frame( newdata )
+colnames( newdata ) = colnames( processPredictors )
+newdata$ManufacturingProcess32 = variation
+
+xs = variation
+y_hat = predict( enet_base_model, newx=as.matrix(newdata), s=0.35, mode="fraction", type="fit" )
+
+plot( xs, y_hat$fit, xlab='variation in ManufacturingProcess32', ylab='predicted yield' )
+grid()
+```
