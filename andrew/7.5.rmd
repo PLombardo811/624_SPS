@@ -67,7 +67,13 @@ a) We tested various nonlinear models including Neural Networks; Multivariate Ad
 
 Based on the results of the model on the test data sets, the best performing models were the MARS model and the SVM model, depending on which test statistic you assessed. The MARS model had the lowest Root Mean Squared Error (1.28) and the SVM model had the highest R-squared value (0.58).  
 
-### Neural Networks
+#### Neural Networks  
+
+```{r}
+#Set-up trainControl
+set.seed(517)
+ctrl <- trainControl(method = "boot", number = 25)
+```
 
 ```{r}
 nnetAvgChemModel <- avNNet(x = ppTrainPredictors, y = trainYield,
@@ -82,28 +88,33 @@ nnetAvgPred1 <- predict(nnetAvgChemModel,ppTestPredictors)
 nnetAvgValues1 <- data.frame(obs=testYield,pred=nnetAvgPred1)
 defaultSummary(nnetAvgValues1)
 
-nnetChemModel <- nnet(x = ppTrainPredictors, y = trainYield,
-size=5,
-decay = 0.01,
+#nnetChemModel <- nnet(x = ppTrainPredictors, y = trainYield,
+#size=5,
+#decay = 0.01,
+#linout=TRUE,
+#trace=FALSE,
+#maxit=500,
+#MaxNWts=5*(ncol(ppTrainPredictors)+1)+5+1)
+
+nnetChemGrid <- expand.grid(.decay=c(0,0.01,0.1),.size=c(1:10),.bag=FALSE)
+
+nnetChemTune <- train(x = ppTrainPredictors, y = trainYield,
+method="avNNet",
+tuneGrid=nnetChemGrid,
+trcontrol=ctrl,
+preProcess = c("center","scale"),
 linout=TRUE,
 trace=FALSE,
 maxit=500,
-MaxNWts=5*(ncol(ppTrainPredictors)+1)+5+1)
+MaxNWts=10*(ncol(ppTrainPredictors)+1)+10+1)
 
-nnetPred1 <- predict(nnetChemModel,ppTestPredictors)
+nnetPred1 <- predict(nnetChemTune,ppTestPredictors)
 nnetValues1 <- data.frame(obs=testYield,pred=nnetPred1)
 defaultSummary(nnetValues1)
 
 ```
 
-
-```{r}
-#Set-up trainControl
-set.seed(517)
-ctrl <- trainControl(method = "boot", number = 25)
-```
-
-### Multivariate Adaptive Regression Splines  
+#### Multivariate Adaptive Regression Splines  
 
 ```{r}
 set.seed(614)
@@ -121,7 +132,7 @@ defaultSummary(MarsValues1)
 
 ```
 
-### Support Vector Machines
+#### Support Vector Machines  
 
 ```{r}
 psvmTuneGrid <- expand.grid(C=c(0.01,0.05,0.1), degree=c(1,2), scale=c(0.25,0.5,1))
@@ -137,7 +148,7 @@ PSVMChemTune$finalModel
 
 ```
 
-### K-Nearest Neighbor
+#### K-Nearest Neighbor  
 
 ```{r}
 knnChemModel <- train(x = ppTrainPredictors, y = trainYield,
