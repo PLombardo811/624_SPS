@@ -96,21 +96,21 @@ defaultSummary(nnetAvgValues1)
 #maxit=500,
 #MaxNWts=5*(ncol(ppTrainPredictors)+1)+5+1)
 
-nnetChemGrid <- expand.grid(.decay=c(0,0.01,0.1),.size=c(1:10),.bag=FALSE)
+#nnetChemGrid <- expand.grid(.decay=c(0,0.01,0.1),.size=c(1:10),.bag=FALSE)
 
-nnetChemTune <- train(x = ppTrainPredictors, y = trainYield,
-method="avNNet",
-tuneGrid=nnetChemGrid,
-trcontrol=ctrl,
-preProcess = c("center","scale"),
-linout=TRUE,
-trace=FALSE,
-maxit=500,
-MaxNWts=10*(ncol(ppTrainPredictors)+1)+10+1)
+#nnetChemTune <- train(x = ppTrainPredictors, y = trainYield,
+#method="avNNet",
+#tuneGrid=nnetChemGrid,
+#trcontrol=ctrl,
+#preProcess = c("center","scale"),
+#linout=TRUE,
+#trace=FALSE,
+#maxit=500,
+#MaxNWts=10*(ncol(ppTrainPredictors)+1)+10+1)
 
-nnetPred1 <- predict(nnetChemTune,ppTestPredictors)
-nnetValues1 <- data.frame(obs=testYield,pred=nnetPred1)
-defaultSummary(nnetValues1)
+#nnetPred1 <- predict(nnetChemTune,ppTestPredictors)
+3nnetValues1 <- data.frame(obs=testYield,pred=nnetPred1)
+#defaultSummary(nnetValues1)
 
 ```
 
