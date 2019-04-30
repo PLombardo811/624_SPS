@@ -11,6 +11,7 @@ library(nnet)
 library(RANN)
 library(ggplot2)
 library(earth)
+library(kernlab)
 data(ChemicalManufacturingProcess)
 ```
 
