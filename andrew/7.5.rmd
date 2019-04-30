@@ -7,10 +7,14 @@ output: html_document
 ```{r}
 library(AppliedPredictiveModeling)
 library(caret)
+library(nnet)
+library(RANN)
+library(ggplot2)
 data(ChemicalManufacturingProcess)
 ```
 
-(a)
+Below we show all the steps we took to prepare our data for the various nonlinear models.  Steps included dividing the data into a training and test data set; pre-processing the data to transform, scale, center and impute values where they might be missing.  We also filtered the data to remove predictors which might be highly correlated with other predictors.  
+
 ```{r}
 predictors <- subset(ChemicalManufacturingProcess,select= -Yield)
 yield <- subset(ChemicalManufacturingProcess,select="Yield")
@@ -58,11 +62,48 @@ ppTrainPredictors <- ppTrainPredictors[, -highCorrpp]
 ppTestPredictors <- ppTestPredictors[, -highCorrpp]
 ```
 
+
+a) We tested various nonlinear models including Neural Networks; Multivariate Adaptive Regression Splines (MARS); Support Vector Machines SVM; and K-Nearest Neighbor. Below we show all the code for training and testing those models.  
+
+Based on the results of the model on the test data sets, the best performing models were the MARS model and the SVM model, depending on which test statistic you assessed. The MARS model had the lowest Root Mean Squared Error (1.28) and the SVM model had the highest R-squared value (0.58).  
+
+### Neural Networks
+
+```{r}
+nnetAvgChemModel <- avNNet(x = ppTrainPredictors, y = trainYield,
+size=5,
+decay = 0.01,
+linout=TRUE,
+trace=FALSE,
+maxit=500,
+MaxNWts=5*(ncol(ppTrainPredictors)+1)+5+1)
+
+nnetAvgPred1 <- predict(nnetAvgChemModel,ppTestPredictors)
+nnetAvgValues1 <- data.frame(obs=testYield,pred=nnetAvgPred1)
+defaultSummary(nnetAvgValues1)
+
+nnetChemModel <- nnet(x = ppTrainPredictors, y = trainYield,
+size=5,
+decay = 0.01,
+linout=TRUE,
+trace=FALSE,
+maxit=500,
+MaxNWts=5*(ncol(ppTrainPredictors)+1)+5+1)
+
+nnetPred1 <- predict(nnetChemModel,ppTestPredictors)
+nnetValues1 <- data.frame(obs=testYield,pred=nnetPred1)
+defaultSummary(nnetValues1)
+
+```
+
+
 ```{r}
 #Set-up trainControl
 set.seed(517)
 ctrl <- trainControl(method = "boot", number = 25)
 ```
+
+### Multivariate Adaptive Regression Splines  
 
 ```{r}
 set.seed(614)
@@ -73,15 +114,47 @@ method = "earth",
 trControl = ctrl,
 tuneGrid = marsChemGrid)
 
+MarsPred1 <- predict(marsChemTune,ppTestPredictors)
+MarsValues1 <- data.frame(obs=testYield,pred=MarsPred1)
+colnames(MarsValues1)[2] <- "pred"
+defaultSummary(MarsValues1)
+
+```
+
+### Support Vector Machines
+
+```{r}
 psvmTuneGrid <- expand.grid(C=c(0.01,0.05,0.1), degree=c(1,2), scale=c(0.25,0.5,1))
 PSVMChemTune <- train(x = ppTrainPredictors, y = trainYield,
 method = "svmPoly",
 trControl = ctrl,
 tuneGrid = psvmTuneGrid)
+
+PSVMPred1 <- predict(PSVMChemTune,ppTestPredictors)
+PSVMValues1 <- data.frame(obs=testYield,pred=PSVMPred1)
+defaultSummary(PSVMValues1)
+PSVMChemTune$finalModel
+
 ```
 
+### K-Nearest Neighbor
 
-(b)
+```{r}
+knnChemModel <- train(x = ppTrainPredictors, y = trainYield,
+method = "knn",
+preProcess = c("center","scale"),
+trControl = ctrl,
+tuneLength=20)
+
+knnPred1 <- predict(knnChemModel,ppTestPredictors)
+knnValues1 <- data.frame(obs=testYield,pred=knnPred1)
+defaultSummary(knnValues1)
+
+```
+
+(b) Since the SVM models do not allow us to assess the most important predictors, we focused our analysis on the MARS model. The optimal degree and number of terms that maximize R2 for the MARS model are 1 and 3, respectively, with an R2 of 0.51.  The top two MARS predictors are ManufacturingProcess32 and ManufacturingProcess09, are the same as the top predictors for the top performing linear (PLS) model.  
+
+The final MARS model has slightly worse cross-validation and test set performance than the optimal PLS model. This suggests the underlying structure between the predictors and the response is approximately linear.  PLS identifies additional predictive information from the other predictors that improve the predictive ability of the models.  Overall, many of the manufacturing process predictors are at the top of the importance list.  
 
 ```{r}
 marsChemTune$results$degree[best(marsChemTune$results, "Rsquared", maximize = TRUE)]
@@ -95,47 +168,28 @@ marsChemTune$results$nprune[best(marsChemTune$results, "Rsquared", maximize = TR
 round(marsChemTune$results$Rsquared[best(marsChemTune$results, "Rsquared", maximize = TRUE)],2)
 ```
 
-##The optimal degree and number of terms that maximize R2 are 1 and 3, respectively, with an R2 of 0.51
-##The top two PLS predictors are ManufacturingProcess32 and ManufacturingProcess09, which are the same as what the MARS
-model identifies.
-
 ```{r}
 chemMARSSummary <- summary(marsChemTune$finalModel)
 chemMARSSummary
 ```
 
-
 ```{r}
 varImp(marsChemTune)
 ```
 
-The final MARS model has slightly worse cross-validation and test set performance than the optimal PLS model. This indicates the underlying structure between the predictors and the response is approximately linear.  
-
-
- the top two PLS predictors are ManufacturingProcess32 and ManufacturingProcess09, which are the same as what the MARS model identifies.  PLS, however, identifies additional predictive information from the other predictors that improve the predictive ability of the models.  Overall, many of the manufacturing process predictors are at the top of the importance list.
-
-indicates that the optimal degree, cost, and scale that maximize $R^2$ are 
+c) Below we plot the best performing predictor variables (ManufacturingProcess32 and ManufacturingProcess09) against the dependent variable (Yield.) In both cases it looks like there is a clear positive trend between each process predictor variable and the dependent variable - in other words the higher the process value the stronger the yield.  
 
 ```{r}
-PSVMChemTune$results$degree[best(PSVMChemTune$results, "Rsquared", maximize = TRUE)]
+
+ggplot(ChemicalManufacturingProcess, aes(x=ManufacturingProcess32, y=Yield)) +  geom_point(shape=1) + geom_smooth(se=TRUE)
+
+ggplot(ChemicalManufacturingProcess, aes(x=ManufacturingProcess32, y=Yield)) +  geom_point(shape=1) + geom_smooth(method = lm, se=TRUE)
+
 ```
 ```{r}
-PSVMChemTune$results$C[best(PSVMChemTune$results, "Rsquared", maximize = TRUE)]
-```
-```{r}
-PSVMChemTune$results$scale[best(PSVMChemTune$results, "Rsquared", maximize = TRUE)]
-```
-respectively, with an $R^2$ of 
 
-```{r}
-round(PSVMChemTune$results$Rsquared[best(PSVMChemTune$results, "Rsquared", maximize = TRUE)],2)
+ggplot(ChemicalManufacturingProcess, aes(x=ManufacturingProcess09, y=Yield)) +  geom_point(shape=1) + geom_smooth(se=TRUE)
+
+ggplot(ChemicalManufacturingProcess, aes(x=ManufacturingProcess09, y=Yield)) +  geom_point(shape=1) + geom_smooth(method = lm, se=TRUE)
+
 ```
-
-```{r}
-plotTheme <- bookTheme()
-trellis.par.set(plotTheme)
-plot(PSVMChemTune,metric="Rsquared")
-```
-
-The polynomial SVM tuning parameters both indicate that a linear model is sufficient for this model.  Specifically, a degree of 1 is an indicator of linear structure, and a low cost is also an indicator of linear structure.
-
