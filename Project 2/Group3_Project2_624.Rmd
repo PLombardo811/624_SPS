@@ -3,8 +3,10 @@ title: "Grp3_Project2_624"
 author: "Peter Lombardo"
 date: "May 5, 2019"
 output: html_document
+
 ---
 ```{r}
+library(devtools)
 library(caret) 
 library(mlbench)
 library(gbm)
@@ -12,6 +14,12 @@ library(tidyr)
 library(readxl)
 library(httr)
 library(tidyverse)
+library(zoo)
+library(caret)       
+library(corrplot)
+library(MASS) 
+library(DataExplorer)
+library(ggplot2)
 ```
 
 ```{r}
@@ -19,8 +27,42 @@ Data_Dictionary <- read.csv('https://raw.githubusercontent.com/PLombardo811/624_
 Student_Data <- read.csv('https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project%202/StudentData.csv', header = TRUE, sep = ',')
 Student_Evaluation <- read.csv('https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project%202/StudentEvaluation-%20TO%20PREDICT.csv', header = TRUE, sep = ',')
 ```
+#step1, fill missing data
 ```{r}
-head(Data_Dictionary)
-head(Student_Data)
-head(Student_Evaluation)
+Student_Data
+PlotMissing(Student_Data)
 ```
+```{r}
+Student_Data2 <- Student_Data[2:33]
+NA2mean <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE))
+replace(Student_Data2, TRUE, lapply(Student_Data2, NA2mean))
+Student_Data[2:33] <- lapply(Student_Data2, NA2mean)
+Student_Data
+PlotMissing(Student_Data)
+```
+#step 2, plot data
+```{r}
+Student_Data_Hist <- Student_Data2[2:ncol(Student_Data2)] #removing factor var
+par(mfrow = c(3,5), cex = .5)
+for(i in colnames(Student_Data2)){
+hist(Student_Data2[,i], xlab = names(Student_Data2[i]),
+  main = names(Student_Data2[i]), col="grey", ylab="")
+}
+```
+```{r}
+par(mfrow = c(3,5), cex = .5)
+for (i in colnames(Student_Data2)) {
+ smoothScatter(Student_Data2[,i], main = names(Student_Data2[i]), ylab = "", 
+   xlab = "", colramp = colorRampPalette(c("white", "red")))
+ }
+```
+#step 3, find correlations  to PH
+```{r}
+correlations <- cor(Student_Data2, use = "complete.obs")
+corrplot(correlations, order = "hclust", tl.cex = 0.55)
+DataExplorer::CorrelationContinuous(Student_Data, use = "pairwise.complete.obs")
+```
+```{r}
+```
+
+#step 3, predict
