@@ -5,5 +5,22 @@ date: "May 5, 2019"
 output: html_document
 ---
 ```{r}
-Data_Dictionary
+library(caret) 
+library(mlbench)
+library(gbm)
+library(tidyr)
+library(readxl)
+library(httr)
+library(tidyverse)
+```
+
+```{r}
+Data_Dictionary <- read.csv('https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project%202/Data%20Dictionary.csv', header = TRUE, sep = ',')
+Student_Data <- read.csv('https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project%202/StudentData.csv', header = TRUE, sep = ',')
+Student_Evaluation <- read.csv('https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project%202/StudentEvaluation-%20TO%20PREDICT.csv', header = TRUE, sep = ',')
+```
+```{r}
+head(Data_Dictionary)
+head(Student_Data)
+head(Student_Evaluation)
 ```
