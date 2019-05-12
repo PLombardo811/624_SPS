@@ -1,0 +1,134 @@
+---
+title: "Grp3_Project2_624"
+author: "Peter Lombardo"
+date: "May 5, 2019"
+output: html_document
+
+---
+```{r}
+library(devtools)
+library(caret) 
+library(mlbench)
+library(gbm)
+library(tidyr)
+library(readxl)
+library(httr)
+library(tidyverse)
+library(zoo)
+library(caret)       
+library(corrplot)
+library(MASS) 
+library(DataExplorer)
+library(ggplot2)
+```
+
+```{r}
+Data_Dictionary <- read.csv('https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project%202/Data%20Dictionary.csv', header = TRUE, sep = ',')
+Student_Data <- read.csv('https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project%202/StudentData.csv', header = TRUE, sep = ',')
+Student_Evaluation <- read.csv('https://raw.githubusercontent.com/PLombardo811/624_SPS/Homework/Project%202/StudentEvaluation-%20TO%20PREDICT.csv', header = TRUE, sep = ',')
+```
+#step1, fill missing data
+```{r}
+Student_Data
+plot_missing(Student_Data)
+```
+```{r}
+Student_Data2 <- Student_Data[2:33]
+NA2mean <- function(x) replace(x, is.na(x), mean(x, na.rm = TRUE))
+replace(Student_Data2, TRUE, lapply(Student_Data2, NA2mean))
+Student_Data[2:33] <- lapply(Student_Data2, NA2mean)
+Student_Data
+plot_missing(Student_Data)
+```
+#step 2, plot data
+```{r}
+Student_Data_Hist <- Student_Data2[2:ncol(Student_Data2)] #removing factor var
+par(mfrow = c(3,5), cex = .5)
+for(i in colnames(Student_Data2)){
+hist(Student_Data2[,i], xlab = names(Student_Data2[i]),
+  main = names(Student_Data2[i]), col="grey", ylab="")
+}
+```
+```{r}
+par(mfrow = c(3,5), cex = .5)
+for (i in colnames(Student_Data2)) {
+ smoothScatter(Student_Data2[,i], main = names(Student_Data2[i]), ylab = "", 
+   xlab = "", colramp = colorRampPalette(c("white", "red")))
+ }
+```
+#step 3, find correlations  to PH
+```{r}
+correlations <- cor(Student_Data2, use = "complete.obs")
+corrplot(correlations, order = "hclust", tl.cex = 0.55)
+DataExplorer::CorrelationContinuous(Student_Data, use = "pairwise.complete.obs")
+```
+#full model
+```{r}
+Student_Data2<-na.omit(Student_Data2)
+m<-lm(PH~.,data= Student_Data2)
+summary(m)
+```
+# step model
+```{r}
+step.model1 <- stepAIC(m, direction = "both",  trace = FALSE)
+summary(step.model1)
+```
+```{r}
+pred1<-predict(step.model1,Student_Data2)
+lmValues1 <- data.frame(obs =Student_Data2$PH,pred=pred1)
+defaultSummary(lmValues1)
+```
+# step model with 1 to 15 variables 
+```{r}
+set.seed(123)
+# Set up repeated k-fold cross-validation
+train.control <- trainControl(method = "cv", number = 10)
+# Train the model
+step.model <- train(PH ~., data = Student_Data2,
+                    method = "leapBackward", 
+                    tuneGrid = data.frame(nvmax = 1:15),
+                    trControl = train.control
+                    )
+step.model$results
+```
+```{r}
+step.model$bestTune
+summary(step.model$finalModel)
+coef(step.model$finalModel, 15)
+```
+```{r}
+finalM<-lm(PH~Fill.Ounces+Mnf.Flow+Carb.Pressure1+Fill.Pressure+Hyd.Pressure3+Temperature+Usage.cont+Density+Balling+Pressure.Vacuum
+           +Oxygen.Filler+Bowl.Setpoint+Alch.Rel+Carb.Rel+Balling.Lvl,data=Student_Data2)
+summary(finalM)
+
+```
+```{r}
+pred2<-predict(finalM,Student_Data2)
+lmValues2 <- data.frame(obs =Student_Data2$PH,pred=pred2)
+defaultSummary(lmValues2)
+```
+# partial leaset square
+```{r}
+set.seed(123)
+# Train the model
+plsTune<- train(PH ~., data = Student_Data2,
+                    method = "pls", 
+                    tuneLength = 20,
+                    trControl = train.control,
+                    preProc = c("center","scale")
+                    )
+
+```
+
+```{r}
+summary(plsTune)
+
+```
+```{r}
+pred3<-predict(plsTune,Student_Data2)
+lmValues3 <- data.frame(obs =Student_Data2$PH,pred=pred3)
+defaultSummary(lmValues3)
+
+```
+
+Based on train data result, the stepwise selection model has the best result according to RMSE and R Squared  
